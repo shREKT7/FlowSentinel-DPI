@@ -1,0 +1,56 @@
+[
+{
+  "directory": "D:/Projects/FlowSentinel-DPI/build",
+  "command": "C:\\mingw64\\bin\\c++.exe  @CMakeFiles/flowsentinel.dir/includes_CXX.rsp -std=gnu++17 -o CMakeFiles\\flowsentinel.dir\\src\\dpi_mt.cpp.obj -c D:\\Projects\\FlowSentinel-DPI\\src\\dpi_mt.cpp",
+  "file": "D:/Projects/FlowSentinel-DPI/src/dpi_mt.cpp",
+  "output": "CMakeFiles/flowsentinel.dir/src/dpi_mt.cpp.obj"
+},
+{
+  "directory": "D:/Projects/FlowSentinel-DPI/build",
+  "command": "C:\\mingw64\\bin\\c++.exe  @CMakeFiles/flowsentinel.dir/includes_CXX.rsp -std=gnu++17 -o CMakeFiles\\flowsentinel.dir\\src\\pcap_reader.cpp.obj -c D:\\Projects\\FlowSentinel-DPI\\src\\pcap_reader.cpp",
+  "file": "D:/Projects/FlowSentinel-DPI/src/pcap_reader.cpp",
+  "output": "CMakeFiles/flowsentinel.dir/src/pcap_reader.cpp.obj"
+},
+{
+  "directory": "D:/Projects/FlowSentinel-DPI/build",
+  "command": "C:\\mingw64\\bin\\c++.exe  @CMakeFiles/flowsentinel.dir/includes_CXX.rsp -std=gnu++17 -o CMakeFiles\\flowsentinel.dir\\src\\packet_parser.cpp.obj -c D:\\Projects\\FlowSentinel-DPI\\src\\packet_parser.cpp",
+  "file": "D:/Projects/FlowSentinel-DPI/src/packet_parser.cpp",
+  "output": "CMakeFiles/flowsentinel.dir/src/packet_parser.cpp.obj"
+},
+{
+  "directory": "D:/Projects/FlowSentinel-DPI/build",
+  "command": "C:\\mingw64\\bin\\c++.exe  @CMakeFiles/flowsentinel.dir/includes_CXX.rsp -std=gnu++17 -o CMakeFiles\\flowsentinel.dir\\src\\sni_extractor.cpp.obj -c D:\\Projects\\FlowSentinel-DPI\\src\\sni_extractor.cpp",
+  "file": "D:/Projects/FlowSentinel-DPI/src/sni_extractor.cpp",
+  "output": "CMakeFiles/flowsentinel.dir/src/sni_extractor.cpp.obj"
+},
+{
+  "directory": "D:/Projects/FlowSentinel-DPI/build",
+  "command": "C:\\mingw64\\bin\\c++.exe  @CMakeFiles/flowsentinel.dir/includes_CXX.rsp -std=gnu++17 -o CMakeFiles\\flowsentinel.dir\\src\\types.cpp.obj -c D:\\Projects\\FlowSentinel-DPI\\src\\types.cpp",
+  "file": "D:/Projects/FlowSentinel-DPI/src/types.cpp",
+  "output": "CMakeFiles/flowsentinel.dir/src/types.cpp.obj"
+},
+{
+  "directory": "D:/Projects/FlowSentinel-DPI/build",
+  "command": "C:\\mingw64\\bin\\c++.exe  @CMakeFiles/flowsentinel.dir/includes_CXX.rsp -std=gnu++17 -o CMakeFiles\\flowsentinel.dir\\src\\rule_manager.cpp.obj -c D:\\Projects\\FlowSentinel-DPI\\src\\rule_manager.cpp",
+  "file": "D:/Projects/FlowSentinel-DPI/src/rule_manager.cpp",
+  "output": "CMakeFiles/flowsentinel.dir/src/rule_manager.cpp.obj"
+},
+{
+  "directory": "D:/Projects/FlowSentinel-DPI/build",
+  "command": "C:\\mingw64\\bin\\c++.exe  @CMakeFiles/flowsentinel.dir/includes_CXX.rsp -std=gnu++17 -o CMakeFiles\\flowsentinel.dir\\src\\connection_tracker.cpp.obj -c D:\\Projects\\FlowSentinel-DPI\\src\\connection_tracker.cpp",
+  "file": "D:/Projects/FlowSentinel-DPI/src/connection_tracker.cpp",
+  "output": "CMakeFiles/flowsentinel.dir/src/connection_tracker.cpp.obj"
+},
+{
+  "directory": "D:/Projects/FlowSentinel-DPI/build",
+  "command": "C:\\mingw64\\bin\\c++.exe  @CMakeFiles/flowsentinel.dir/includes_CXX.rsp -std=gnu++17 -o CMakeFiles\\flowsentinel.dir\\src\\load_balancer.cpp.obj -c D:\\Projects\\FlowSentinel-DPI\\src\\load_balancer.cpp",
+  "file": "D:/Projects/FlowSentinel-DPI/src/load_balancer.cpp",
+  "output": "CMakeFiles/flowsentinel.dir/src/load_balancer.cpp.obj"
+},
+{
+  "directory": "D:/Projects/FlowSentinel-DPI/build",
+  "command": "C:\\mingw64\\bin\\c++.exe  @CMakeFiles/flowsentinel.dir/includes_CXX.rsp -std=gnu++17 -o CMakeFiles\\flowsentinel.dir\\src\\fast_path.cpp.obj -c D:\\Projects\\FlowSentinel-DPI\\src\\fast_path.cpp",
+  "file": "D:/Projects/FlowSentinel-DPI/src/fast_path.cpp",
+  "output": "CMakeFiles/flowsentinel.dir/src/fast_path.cpp.obj"
+}
+]
