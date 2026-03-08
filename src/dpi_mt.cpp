@@ -17,12 +17,11 @@
 #include <unordered_set>
 #include <vector>
 
-
+#include "live_capture.h"
 #include "packet_parser.h"
 #include "pcap_reader.h"
 #include "sni_extractor.h"
 #include "types.h"
-
 
 using namespace PacketAnalyzer;
 using namespace DPI;
@@ -412,21 +411,34 @@ public:
   void blockDomain(const std::string &dom) { rules_.blockDomain(dom); }
 
   bool process(const std::string &input_file, const std::string &output_file) {
-    // Open input
+    bool is_live = (input_file == "--live");
     PcapReader reader;
-    if (!reader.open(input_file))
-      return false;
+    LiveCapture live_reader;
 
-    // Open output
-    std::ofstream output(output_file, std::ios::binary);
-    if (!output.is_open()) {
-      std::cerr << "Cannot open output file\n";
-      return false;
+    if (is_live) {
+      if (!live_reader.start())
+        return false;
+    } else {
+      if (!reader.open(input_file))
+        return false;
     }
 
-    // Write PCAP header
-    const auto &hdr = reader.getGlobalHeader();
-    output.write(reinterpret_cast<const char *>(&hdr), sizeof(hdr));
+    std::ofstream output;
+    if (!output_file.empty()) {
+      output.open(output_file, std::ios::binary);
+      if (!output.is_open()) {
+        std::cerr << "Cannot open output file\n";
+        return false;
+      }
+
+      if (!is_live) {
+        const auto &hdr = reader.getGlobalHeader();
+        output.write(reinterpret_cast<const char *>(&hdr), sizeof(hdr));
+      } else {
+        PcapGlobalHeader hdr = {0xa1b2c3d4, 2, 4, 0, 0, 65535, 1};
+        output.write(reinterpret_cast<const char *>(&hdr), sizeof(hdr));
+      }
+    }
 
     // Start all threads
     for (auto &fp : fps_)
@@ -442,25 +454,35 @@ public:
         if (!pkt_opt)
           continue;
 
-        PcapPacketHeader phdr;
-        phdr.ts_sec = pkt_opt->ts_sec;
-        phdr.ts_usec = pkt_opt->ts_usec;
-        phdr.incl_len = pkt_opt->data.size();
-        phdr.orig_len = pkt_opt->data.size();
+        if (output.is_open()) {
+          PcapPacketHeader phdr;
+          phdr.ts_sec = pkt_opt->ts_sec;
+          phdr.ts_usec = pkt_opt->ts_usec;
+          phdr.incl_len = pkt_opt->data.size();
+          phdr.orig_len = pkt_opt->data.size();
 
-        output.write(reinterpret_cast<const char *>(&phdr), sizeof(phdr));
-        output.write(reinterpret_cast<const char *>(pkt_opt->data.data()),
-                     pkt_opt->data.size());
+          output.write(reinterpret_cast<const char *>(&phdr), sizeof(phdr));
+          output.write(reinterpret_cast<const char *>(pkt_opt->data.data()),
+                       pkt_opt->data.size());
+        }
       }
     });
 
     // Read and dispatch packets
-    std::cout << "[Reader] Processing packets...\n";
+    std::cout
+        << (is_live
+                ? "[LiveCapture] Processing live packets (Ctrl+C to stop)...\n"
+                : "[Reader] Processing packets...\n");
     RawPacket raw;
     ParsedPacket parsed;
     uint32_t pkt_id = 0;
 
-    while (reader.readNextPacket(raw)) {
+    auto readNext = [&]() -> bool {
+      return is_live ? live_reader.readNextPacket(raw)
+                     : reader.readNextPacket(raw);
+    };
+
+    while (readNext()) {
       if (!PacketParser::parse(raw, parsed))
         continue;
       if (!parsed.has_ip || (!parsed.has_tcp && !parsed.has_udp))
@@ -529,8 +551,12 @@ public:
       lbs_[lb_idx]->queue().push(std::move(pkt));
     }
 
-    std::cout << "[Reader] Done reading " << pkt_id << " packets\n";
-    reader.close();
+    std::cout << (is_live ? "[LiveCapture] Stopped" : "[Reader] Done reading")
+              << " " << pkt_id << " packets\n";
+    if (is_live)
+      live_reader.close();
+    else
+      reader.close();
 
     // Wait for queues to drain
     std::this_thread::sleep_for(std::chrono::milliseconds(500));
@@ -545,7 +571,8 @@ public:
     output_queue_.shutdown();
     output_thread.join();
 
-    output.close();
+    if (output.is_open())
+      output.close();
 
     // Print report
     printReport();
@@ -644,6 +671,8 @@ DPI Engine v2.0 - Multi-threaded Deep Packet Inspection
 
 Usage: )"
       << prog << R"( <input.pcap> <output.pcap> [options]
+       )"
+      << prog << R"( --live [options]
 
 Options:
   --block-ip <ip>        Block source IP
@@ -655,22 +684,34 @@ Options:
 Example:
   )" << prog
       << R"( capture.pcap filtered.pcap --block-app YouTube --block-ip 192.168.1.50
+  )" << prog
+      << R"( --live --block-app Facebook
 )";
 }
 
 int main(int argc, char *argv[]) {
-  if (argc < 3) {
+  if (argc < 2) {
     printUsage(argv[0]);
     return 1;
   }
 
   std::string input = argv[1];
-  std::string output = argv[2];
+  std::string output = "";
+  int arg_start = 2;
+
+  if (input != "--live") {
+    if (argc < 3) {
+      printUsage(argv[0]);
+      return 1;
+    }
+    output = argv[2];
+    arg_start = 3;
+  }
 
   DPIEngine::Config cfg;
   std::vector<std::string> block_ips, block_apps, block_domains;
 
-  for (int i = 3; i < argc; i++) {
+  for (int i = arg_start; i < argc; i++) {
     std::string arg = argv[i];
     if (arg == "--block-ip" && i + 1 < argc)
       block_ips.push_back(argv[++i]);
@@ -697,6 +738,8 @@ int main(int argc, char *argv[]) {
     return 1;
   }
 
-  std::cout << "\nOutput written to: " << output << "\n";
+  if (!output.empty()) {
+    std::cout << "\nOutput written to: " << output << "\n";
+  }
   return 0;
 }
