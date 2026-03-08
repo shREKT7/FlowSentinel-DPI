@@ -24,16 +24,38 @@
 #include "sni_extractor.h"
 #include "types.h"
 
-
 using namespace PacketAnalyzer;
 using namespace DPI;
 
 // =============================================================================
-// Hybrid Domain Intelligence Layer
+// Hybrid Domain Intelligence Layer & DNS Correlation Engine
+// =============================================================================
+// The DNS correlation system extracts IP-to-Domain mappings from intercepted
+// DNS response packets (UDP port 53). These mappings are stored in a
+// thread-safe global table with a strict eviction strategy (10,000 limit) to
+// prevent memory exhaustion. New flows check this correlation table to classify
+// traffic (e.g., DoH, TLS with ECH) when the SNI is encrypted or missing.
 // =============================================================================
 namespace {
 std::unordered_map<uint32_t, std::string> g_ip_to_domain;
+std::queue<uint32_t> g_dns_fifo;
 std::mutex g_dns_mutex;
+const size_t MAX_DNS_CACHE_SIZE = 10000;
+
+void addDnsMapping(uint32_t ip, const std::string &domain) {
+  std::lock_guard<std::mutex> lock(g_dns_mutex);
+  if (g_ip_to_domain.find(ip) == g_ip_to_domain.end()) {
+    g_dns_fifo.push(ip);
+  }
+  g_ip_to_domain[ip] = domain;
+
+  // Eviction strategy: remove oldest entries if size exceeds limit
+  while (g_ip_to_domain.size() > MAX_DNS_CACHE_SIZE && !g_dns_fifo.empty()) {
+    uint32_t oldest_ip = g_dns_fifo.front();
+    g_dns_fifo.pop();
+    g_ip_to_domain.erase(oldest_ip);
+  }
+}
 
 void parseDNS(const uint8_t *payload, size_t length) {
   if (length < 12)
@@ -105,8 +127,7 @@ void parseDNS(const uint8_t *payload, size_t length) {
       uint32_t ip = (payload[offset]) | (payload[offset + 1] << 8) |
                     (payload[offset + 2] << 16) | (payload[offset + 3] << 24);
       if (!domain.empty()) {
-        std::lock_guard<std::mutex> lock(g_dns_mutex);
-        g_ip_to_domain[ip] = domain;
+        addDnsMapping(ip, domain);
       }
     }
     offset += rdlength;
