@@ -359,9 +359,16 @@ private:
       flow.packets++;
       flow.bytes += pkt.data.size();
 
-      // Try to classify if not done yet
+      // Try to classify if not done yet (or upgrade from port-based guess)
       if (!flow.classified) {
+        AppType prev_type = flow.app_type;
         classifyFlow(pkt, flow);
+
+        // Record stats only when classification changes (per-flow, not
+        // per-packet)
+        if (flow.app_type != prev_type) {
+          stats_->recordApp(flow.app_type, flow.sni);
+        }
       }
 
       // Check blocking
@@ -370,8 +377,7 @@ private:
             rules_->isBlocked(pkt.tuple.src_ip, flow.app_type, flow.sni);
       }
 
-      // Record stats
-      stats_->recordApp(flow.app_type, flow.sni);
+      // Count packet stats (always, but NOT app classification counts here)
 
       // Forward or drop
       if (flow.blocked) {
@@ -443,9 +449,11 @@ private:
       return;
     }
 
-    // 4. Port-based fallback
+    // 4. Port-based fallback — do NOT mark as classified so SNI can be picked
+    // up from a subsequent Client Hello packet on the same flow.
     if (pkt.tuple.dst_port == 443) {
       flow.app_type = AppType::HTTPS;
+      // Do NOT set flow.classified = true here — wait for SNI
     } else if (pkt.tuple.dst_port == 80) {
       flow.app_type = AppType::HTTP;
     }
@@ -615,13 +623,18 @@ public:
               sorted_apps.begin(), sorted_apps.end(),
               [](const auto &a, const auto &b) { return a.second > b.second; });
 
+          // Compute per-flow percentages from app_counts (each flow counted
+          // once)
+          uint64_t total_flows = 0;
+          for (const auto &[app, cnt] : stats_.app_counts)
+            total_flows += cnt;
+
           int count = 0;
           for (const auto &[app, cnt] : sorted_apps) {
-            if (count++ >= 4)
+            if (count++ >= 8)
               break;
-            double pct =
-                current_packets > 0 ? (100.0 * cnt / current_packets) : 0;
-            std::cout << std::setw(10) << std::left << appTypeToString(app)
+            double pct = total_flows > 0 ? (100.0 * cnt / total_flows) : 0;
+            std::cout << std::setw(12) << std::left << appTypeToString(app)
                       << " " << std::setw(3) << std::right
                       << static_cast<int>(pct) << "%\n";
           }
