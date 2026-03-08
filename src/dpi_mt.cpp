@@ -17,14 +17,102 @@
 #include <unordered_set>
 #include <vector>
 
+#include "ip_intelligence.h"
 #include "live_capture.h"
 #include "packet_parser.h"
 #include "pcap_reader.h"
 #include "sni_extractor.h"
 #include "types.h"
 
+
 using namespace PacketAnalyzer;
 using namespace DPI;
+
+// =============================================================================
+// Hybrid Domain Intelligence Layer
+// =============================================================================
+namespace {
+std::unordered_map<uint32_t, std::string> g_ip_to_domain;
+std::mutex g_dns_mutex;
+
+void parseDNS(const uint8_t *payload, size_t length) {
+  if (length < 12)
+    return;
+  uint16_t flags = (payload[2] << 8) | payload[3];
+  if ((flags & 0x8000) == 0)
+    return; // Not a response
+
+  uint16_t qdcount = (payload[4] << 8) | payload[5];
+  uint16_t ancount = (payload[6] << 8) | payload[7];
+
+  size_t offset = 12;
+  for (int i = 0; i < qdcount; ++i) {
+    while (offset < length && payload[offset] != 0) {
+      if ((payload[offset] & 0xC0) == 0xC0) {
+        offset += 2;
+        break;
+      } else {
+        offset += payload[offset] + 1;
+      }
+    }
+    if (offset < length && payload[offset] == 0)
+      offset++;
+    offset += 4;
+  }
+
+  for (int i = 0; i < ancount; ++i) {
+    if (offset >= length)
+      break;
+
+    std::string domain;
+    size_t name_offset = offset;
+    bool jumped = false;
+    size_t jump_cnt = 0;
+
+    while (name_offset < length && payload[name_offset] != 0) {
+      if ((payload[name_offset] & 0xC0) == 0xC0) {
+        if (!jumped)
+          offset = name_offset + 2;
+        if (name_offset + 1 >= length)
+          break;
+        name_offset =
+            ((payload[name_offset] & 0x3F) << 8) | payload[name_offset + 1];
+        jumped = true;
+        if (++jump_cnt > 10)
+          break;
+      } else {
+        uint8_t len = payload[name_offset];
+        if (name_offset + 1 + len > length)
+          break;
+        if (!domain.empty())
+          domain += ".";
+        domain.append((const char *)(payload + name_offset + 1), len);
+        name_offset += len + 1;
+        if (!jumped)
+          offset = name_offset;
+      }
+    }
+    if (!jumped && offset < length && payload[offset] == 0)
+      offset++;
+
+    if (offset + 10 > length)
+      break;
+    uint16_t type = (payload[offset] << 8) | payload[offset + 1];
+    uint16_t rdlength = (payload[offset + 8] << 8) | payload[offset + 9];
+    offset += 10;
+
+    if (type == 1 && rdlength == 4 && offset + 4 <= length) { // A record
+      uint32_t ip = (payload[offset]) | (payload[offset + 1] << 8) |
+                    (payload[offset + 2] << 16) | (payload[offset + 3] << 24);
+      if (!domain.empty()) {
+        std::lock_guard<std::mutex> lock(g_dns_mutex);
+        g_ip_to_domain[ip] = domain;
+      }
+    }
+    offset += rdlength;
+  }
+}
+} // namespace
 
 // =============================================================================
 // Thread-Safe Queue
@@ -275,7 +363,22 @@ private:
   }
 
   void classifyFlow(Packet &pkt, FlowEntry &flow) {
-    // Try SNI extraction for HTTPS
+    // 1. Check DNS correlation table (IP -> domain)
+    {
+      std::lock_guard<std::mutex> lock(g_dns_mutex);
+      auto it = g_ip_to_domain.find(pkt.tuple.dst_ip);
+      if (it != g_ip_to_domain.end()) {
+        flow.sni = it->second;
+        flow.app_type = sniToAppType(it->second);
+        if (flow.app_type != AppType::UNKNOWN &&
+            flow.app_type != AppType::HTTPS) {
+          flow.classified = true;
+          return;
+        }
+      }
+    }
+
+    // 2. Try SNI extraction for HTTPS
     if (pkt.tuple.dst_port == 443 && pkt.payload_length > 5) {
       const uint8_t *payload = pkt.data.data() + pkt.payload_offset;
       auto sni = SNIExtractor::extract(payload, pkt.payload_length);
@@ -287,7 +390,7 @@ private:
       }
     }
 
-    // Try HTTP Host extraction
+    // 2.b Try HTTP Host extraction
     if (pkt.tuple.dst_port == 80 && pkt.payload_length > 10) {
       const uint8_t *payload = pkt.data.data() + pkt.payload_offset;
       auto host = HTTPHostExtractor::extract(payload, pkt.payload_length);
@@ -299,14 +402,27 @@ private:
       }
     }
 
-    // DNS
+    // DNS (extract mappings for feature 1, and mark flow as DNS)
     if (pkt.tuple.dst_port == 53 || pkt.tuple.src_port == 53) {
+      if (pkt.tuple.src_port == 53 && pkt.payload_length > 0) {
+        parseDNS(pkt.data.data() + pkt.payload_offset, pkt.payload_length);
+      }
       flow.app_type = AppType::DNS;
       flow.classified = true;
       return;
     }
 
-    // Port-based fallback (but don't mark as classified - might get SNI later)
+    // 3. Use IP intelligence lookup
+    AppType ip_app = IPIntelligence::classifyByIP(pkt.tuple.dst_ip);
+    if (ip_app != AppType::UNKNOWN) {
+      flow.app_type = ip_app;
+      if (flow.sni.empty())
+        flow.sni = appTypeToString(ip_app);
+      flow.classified = true;
+      return;
+    }
+
+    // 4. Port-based fallback
     if (pkt.tuple.dst_port == 443) {
       flow.app_type = AppType::HTTPS;
     } else if (pkt.tuple.dst_port == 80) {

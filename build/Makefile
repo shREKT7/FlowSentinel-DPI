@@ -200,6 +200,54 @@ src/fast_path.cpp.s:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles\flowsentinel.dir\build.make CMakeFiles/flowsentinel.dir/src/fast_path.cpp.s
 .PHONY : src/fast_path.cpp.s
 
+src/ip_intelligence.obj: src/ip_intelligence.cpp.obj
+.PHONY : src/ip_intelligence.obj
+
+# target to build an object file
+src/ip_intelligence.cpp.obj:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles\flowsentinel.dir\build.make CMakeFiles/flowsentinel.dir/src/ip_intelligence.cpp.obj
+.PHONY : src/ip_intelligence.cpp.obj
+
+src/ip_intelligence.i: src/ip_intelligence.cpp.i
+.PHONY : src/ip_intelligence.i
+
+# target to preprocess a source file
+src/ip_intelligence.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles\flowsentinel.dir\build.make CMakeFiles/flowsentinel.dir/src/ip_intelligence.cpp.i
+.PHONY : src/ip_intelligence.cpp.i
+
+src/ip_intelligence.s: src/ip_intelligence.cpp.s
+.PHONY : src/ip_intelligence.s
+
+# target to generate assembly for a file
+src/ip_intelligence.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles\flowsentinel.dir\build.make CMakeFiles/flowsentinel.dir/src/ip_intelligence.cpp.s
+.PHONY : src/ip_intelligence.cpp.s
+
+src/live_capture.obj: src/live_capture.cpp.obj
+.PHONY : src/live_capture.obj
+
+# target to build an object file
+src/live_capture.cpp.obj:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles\flowsentinel.dir\build.make CMakeFiles/flowsentinel.dir/src/live_capture.cpp.obj
+.PHONY : src/live_capture.cpp.obj
+
+src/live_capture.i: src/live_capture.cpp.i
+.PHONY : src/live_capture.i
+
+# target to preprocess a source file
+src/live_capture.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles\flowsentinel.dir\build.make CMakeFiles/flowsentinel.dir/src/live_capture.cpp.i
+.PHONY : src/live_capture.cpp.i
+
+src/live_capture.s: src/live_capture.cpp.s
+.PHONY : src/live_capture.s
+
+# target to generate assembly for a file
+src/live_capture.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles\flowsentinel.dir\build.make CMakeFiles/flowsentinel.dir/src/live_capture.cpp.s
+.PHONY : src/live_capture.cpp.s
+
 src/load_balancer.obj: src/load_balancer.cpp.obj
 .PHONY : src/load_balancer.obj
 
@@ -362,6 +410,12 @@ help:
 	@echo ... src/fast_path.obj
 	@echo ... src/fast_path.i
 	@echo ... src/fast_path.s
+	@echo ... src/ip_intelligence.obj
+	@echo ... src/ip_intelligence.i
+	@echo ... src/ip_intelligence.s
+	@echo ... src/live_capture.obj
+	@echo ... src/live_capture.i
+	@echo ... src/live_capture.s
 	@echo ... src/load_balancer.obj
 	@echo ... src/load_balancer.i
 	@echo ... src/load_balancer.s

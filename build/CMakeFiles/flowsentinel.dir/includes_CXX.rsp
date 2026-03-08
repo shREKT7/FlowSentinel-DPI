@@ -1,1 +1,1 @@
--I"D:/Projects/FlowSentinel-DPI/include"
+-I"D:/Projects/FlowSentinel-DPI/include" -I"D:/Projects/FlowSentinel-DPI/npcap-sdk/Include"

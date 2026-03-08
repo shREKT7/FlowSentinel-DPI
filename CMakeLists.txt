@@ -24,6 +24,7 @@ set(SOURCES
     src/load_balancer.cpp
     src/fast_path.cpp
     src/live_capture.cpp
+    src/ip_intelligence.cpp
 )
 
 # Create executable
