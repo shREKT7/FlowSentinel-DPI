@@ -25,6 +25,7 @@ set(SOURCES
     src/fast_path.cpp
     src/live_capture.cpp
     src/ip_intelligence.cpp
+    src/app_fingerprint.cpp
 )
 
 # Create executable

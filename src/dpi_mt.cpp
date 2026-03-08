@@ -17,6 +17,7 @@
 #include <unordered_set>
 #include <vector>
 
+#include "app_fingerprint.h"
 #include "ip_intelligence.h"
 #include "live_capture.h"
 #include "packet_parser.h"
@@ -439,14 +440,29 @@ private:
       return;
     }
 
-    // 3. Use IP intelligence lookup
-    AppType ip_app = IPIntelligence::classifyByIP(pkt.tuple.dst_ip);
-    if (ip_app != AppType::UNKNOWN) {
-      flow.app_type = ip_app;
-      if (flow.sni.empty())
-        flow.sni = appTypeToString(ip_app);
-      flow.classified = true;
-      return;
+    // 3. IP-range fingerprinting (runs when DNS + SNI both fail)
+    // detectAppFromIP() returns a human-readable name; sniToAppType needs
+    // lowercase. On port 443 we store a soft guess (classified stays false) so
+    // a subsequent TLS Client Hello can still override with the true SNI
+    // domain. On all other ports there is no TLS handshake, so classify
+    // permanently.
+    {
+      std::string app_name = detectAppFromIP(pkt.tuple.dst_ip);
+      if (app_name != "HTTPS") {
+        std::string lower = app_name;
+        std::transform(lower.begin(), lower.end(), lower.begin(),
+                       [](unsigned char c) { return std::tolower(c); });
+        AppType detected = sniToAppType(lower);
+        if (detected != AppType::UNKNOWN && detected != AppType::HTTPS) {
+          flow.app_type = detected;
+          if (flow.sni.empty())
+            flow.sni = app_name;
+          if (pkt.tuple.dst_port != 443) {
+            flow.classified = true; // permanent — no TLS SNI will arrive
+          }
+          return;
+        }
+      }
     }
 
     // 4. Port-based fallback — do NOT mark as classified so SNI can be picked
