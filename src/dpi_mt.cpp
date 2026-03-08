@@ -180,6 +180,7 @@ struct Stats {
   std::atomic<uint64_t> dropped{0};
   std::atomic<uint64_t> tcp_packets{0};
   std::atomic<uint64_t> udp_packets{0};
+  std::atomic<uint64_t> active_flows{0};
 
   // Per-app stats (protected by mutex)
   std::mutex app_mutex;
@@ -244,6 +245,7 @@ private:
       FlowEntry &flow = flows_[pkt.tuple];
       if (flow.packets == 0) {
         flow.tuple = pkt.tuple;
+        stats_->active_flows++;
       }
       flow.packets++;
       flow.bytes += pkt.data.size();
@@ -447,6 +449,50 @@ public:
     for (auto &lb : lbs_)
       lb->start();
 
+    std::atomic<bool> stats_running{true};
+    std::thread stats_thread;
+
+    if (is_live) {
+      stats_thread = std::thread([&]() {
+        uint64_t last_packets = 0;
+        while (stats_running) {
+          std::this_thread::sleep_for(std::chrono::seconds(1));
+          if (!stats_running)
+            break;
+
+          uint64_t current_packets = stats_.total_packets.load();
+          uint64_t pps = current_packets - last_packets;
+          last_packets = current_packets;
+
+          std::cout << "\033[2J\033[1;1H"; // Clear screen and home cursor
+          std::cout << "## FlowSentinel Live Monitor\n\n";
+          std::cout << "Packets/sec: " << pps << "\n";
+          std::cout << "Total Packets: " << current_packets << "\n";
+          std::cout << "Active Flows: " << stats_.active_flows.load() << "\n\n";
+          std::cout << "Top Applications\n";
+
+          std::lock_guard<std::mutex> lock(stats_.app_mutex);
+          std::vector<std::pair<AppType, uint64_t>> sorted_apps(
+              stats_.app_counts.begin(), stats_.app_counts.end());
+          std::sort(
+              sorted_apps.begin(), sorted_apps.end(),
+              [](const auto &a, const auto &b) { return a.second > b.second; });
+
+          int count = 0;
+          for (const auto &[app, cnt] : sorted_apps) {
+            if (count++ >= 4)
+              break;
+            double pct =
+                current_packets > 0 ? (100.0 * cnt / current_packets) : 0;
+            std::cout << std::setw(10) << std::left << appTypeToString(app)
+                      << " " << std::setw(3) << std::right
+                      << static_cast<int>(pct) << "%\n";
+          }
+          std::cout << std::flush;
+        }
+      });
+    }
+
     // Start output writer thread
     std::atomic<bool> output_running{true};
     std::thread output_thread([&]() {
@@ -575,8 +621,14 @@ public:
     if (output.is_open())
       output.close();
 
-    // Print report
-    printReport();
+    if (is_live) {
+      stats_running = false;
+      if (stats_thread.joinable())
+        stats_thread.join();
+    } else {
+      // Print report
+      printReport();
+    }
 
     return true;
   }
