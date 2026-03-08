@@ -410,13 +410,14 @@ public:
   void blockApp(const std::string &app) { rules_.blockApp(app); }
   void blockDomain(const std::string &dom) { rules_.blockDomain(dom); }
 
-  bool process(const std::string &input_file, const std::string &output_file) {
+  bool process(const std::string &input_file, const std::string &output_file,
+               const std::string &live_interface = "") {
     bool is_live = (input_file == "--live");
     PcapReader reader;
     LiveCapture live_reader;
 
     if (is_live) {
-      if (!live_reader.start())
+      if (!live_reader.start(live_interface))
         return false;
     } else {
       if (!reader.open(input_file))
@@ -672,7 +673,9 @@ DPI Engine v2.0 - Multi-threaded Deep Packet Inspection
 Usage: )"
       << prog << R"( <input.pcap> <output.pcap> [options]
        )"
-      << prog << R"( --live [options]
+      << prog << R"( --live [interface_name] [options]
+       )"
+      << prog << R"( --interfaces
 
 Options:
   --block-ip <ip>        Block source IP
@@ -685,11 +688,20 @@ Example:
   )" << prog
       << R"( capture.pcap filtered.pcap --block-app YouTube --block-ip 192.168.1.50
   )" << prog
-      << R"( --live --block-app Facebook
+      << R"( --live "Wi-Fi" --block-app Facebook
 )";
 }
 
 int main(int argc, char *argv[]) {
+  if (argc >= 2 && std::string(argv[1]) == "--interfaces") {
+    auto interfaces = DPI::LiveCapture::listInterfaces();
+    std::cout << "\n## Available Network Interfaces\n\n";
+    for (size_t i = 0; i < interfaces.size(); ++i) {
+      std::cout << (i + 1) << ". " << interfaces[i] << "\n\n";
+    }
+    return 0;
+  }
+
   if (argc < 2) {
     printUsage(argv[0]);
     return 1;
@@ -697,9 +709,15 @@ int main(int argc, char *argv[]) {
 
   std::string input = argv[1];
   std::string output = "";
+  std::string live_interface = "";
   int arg_start = 2;
 
-  if (input != "--live") {
+  if (input == "--live") {
+    if (argc > 2 && argv[2][0] != '-') {
+      live_interface = argv[2];
+      arg_start = 3;
+    }
+  } else {
     if (argc < 3) {
       printUsage(argv[0]);
       return 1;
@@ -734,7 +752,7 @@ int main(int argc, char *argv[]) {
   for (const auto &dom : block_domains)
     engine.blockDomain(dom);
 
-  if (!engine.process(input, output)) {
+  if (!engine.process(input, output, live_interface)) {
     return 1;
   }
 

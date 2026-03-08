@@ -1,8 +1,9 @@
 #ifndef LIVE_CAPTURE_H
 #define LIVE_CAPTURE_H
 
-#include <string>
 #include "pcap_reader.h"
+#include <string>
+
 
 #ifdef _WIN32
 #include <winsock2.h>
@@ -10,25 +11,31 @@
 #endif
 #include <pcap.h>
 
+#include <vector>
+
 namespace DPI {
 
 class LiveCapture {
 public:
-    LiveCapture();
-    ~LiveCapture();
+  LiveCapture();
+  ~LiveCapture();
 
-    // Open first available network interface for live capture
-    bool start();
-    
-    // Close capture
-    void close();
-    
-    // Read the next packet, blocks until a packet arrives
-    bool readNextPacket(PacketAnalyzer::RawPacket& packet);
+  // List available network interfaces
+  static std::vector<std::string> listInterfaces();
+
+  // Open network interface for live capture. Uses first available if
+  // interface_name is empty.
+  bool start(const std::string &interface_name = "");
+
+  // Close capture
+  void close();
+
+  // Read the next packet, blocks until a packet arrives
+  bool readNextPacket(PacketAnalyzer::RawPacket &packet);
 
 private:
-    pcap_t* handle_ = nullptr;
-    std::string errbuf_;
+  pcap_t *handle_ = nullptr;
+  std::string errbuf_;
 };
 
 } // namespace DPI
