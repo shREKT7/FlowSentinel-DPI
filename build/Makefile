@@ -128,6 +128,30 @@ flowsentinel/fast:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles\flowsentinel.dir\build.make CMakeFiles/flowsentinel.dir/build
 .PHONY : flowsentinel/fast
 
+src/app_fingerprint.obj: src/app_fingerprint.cpp.obj
+.PHONY : src/app_fingerprint.obj
+
+# target to build an object file
+src/app_fingerprint.cpp.obj:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles\flowsentinel.dir\build.make CMakeFiles/flowsentinel.dir/src/app_fingerprint.cpp.obj
+.PHONY : src/app_fingerprint.cpp.obj
+
+src/app_fingerprint.i: src/app_fingerprint.cpp.i
+.PHONY : src/app_fingerprint.i
+
+# target to preprocess a source file
+src/app_fingerprint.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles\flowsentinel.dir\build.make CMakeFiles/flowsentinel.dir/src/app_fingerprint.cpp.i
+.PHONY : src/app_fingerprint.cpp.i
+
+src/app_fingerprint.s: src/app_fingerprint.cpp.s
+.PHONY : src/app_fingerprint.s
+
+# target to generate assembly for a file
+src/app_fingerprint.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles\flowsentinel.dir\build.make CMakeFiles/flowsentinel.dir/src/app_fingerprint.cpp.s
+.PHONY : src/app_fingerprint.cpp.s
+
 src/connection_tracker.obj: src/connection_tracker.cpp.obj
 .PHONY : src/connection_tracker.obj
 
@@ -199,6 +223,30 @@ src/fast_path.s: src/fast_path.cpp.s
 src/fast_path.cpp.s:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles\flowsentinel.dir\build.make CMakeFiles/flowsentinel.dir/src/fast_path.cpp.s
 .PHONY : src/fast_path.cpp.s
+
+src/flow_logger.obj: src/flow_logger.cpp.obj
+.PHONY : src/flow_logger.obj
+
+# target to build an object file
+src/flow_logger.cpp.obj:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles\flowsentinel.dir\build.make CMakeFiles/flowsentinel.dir/src/flow_logger.cpp.obj
+.PHONY : src/flow_logger.cpp.obj
+
+src/flow_logger.i: src/flow_logger.cpp.i
+.PHONY : src/flow_logger.i
+
+# target to preprocess a source file
+src/flow_logger.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles\flowsentinel.dir\build.make CMakeFiles/flowsentinel.dir/src/flow_logger.cpp.i
+.PHONY : src/flow_logger.cpp.i
+
+src/flow_logger.s: src/flow_logger.cpp.s
+.PHONY : src/flow_logger.s
+
+# target to generate assembly for a file
+src/flow_logger.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles\flowsentinel.dir\build.make CMakeFiles/flowsentinel.dir/src/flow_logger.cpp.s
+.PHONY : src/flow_logger.cpp.s
 
 src/ip_intelligence.obj: src/ip_intelligence.cpp.obj
 .PHONY : src/ip_intelligence.obj
@@ -401,6 +449,9 @@ help:
 	@echo ... edit_cache
 	@echo ... rebuild_cache
 	@echo ... flowsentinel
+	@echo ... src/app_fingerprint.obj
+	@echo ... src/app_fingerprint.i
+	@echo ... src/app_fingerprint.s
 	@echo ... src/connection_tracker.obj
 	@echo ... src/connection_tracker.i
 	@echo ... src/connection_tracker.s
@@ -410,6 +461,9 @@ help:
 	@echo ... src/fast_path.obj
 	@echo ... src/fast_path.i
 	@echo ... src/fast_path.s
+	@echo ... src/flow_logger.obj
+	@echo ... src/flow_logger.i
+	@echo ... src/flow_logger.s
 	@echo ... src/ip_intelligence.obj
 	@echo ... src/ip_intelligence.i
 	@echo ... src/ip_intelligence.s

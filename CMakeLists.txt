@@ -26,6 +26,7 @@ set(SOURCES
     src/live_capture.cpp
     src/ip_intelligence.cpp
     src/app_fingerprint.cpp
+    src/flow_logger.cpp
 )
 
 # Create executable

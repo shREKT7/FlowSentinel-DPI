@@ -12,12 +12,14 @@
 #include <mutex>
 #include <optional>
 #include <queue>
+#include <shared_mutex>
 #include <thread>
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
 
 #include "app_fingerprint.h"
+#include "flow_logger.h"
 #include "ip_intelligence.h"
 #include "live_capture.h"
 #include "packet_parser.h"
@@ -31,31 +33,62 @@ using namespace DPI;
 // =============================================================================
 // Hybrid Domain Intelligence Layer & DNS Correlation Engine
 // =============================================================================
-// The DNS correlation system extracts IP-to-Domain mappings from intercepted
-// DNS response packets (UDP port 53). These mappings are stored in a
-// thread-safe global table with a strict eviction strategy (10,000 limit) to
-// prevent memory exhaustion. New flows check this correlation table to classify
-// traffic (e.g., DoH, TLS with ECH) when the SNI is encrypted or missing.
+// 1. DNS responses (UDP src port 53) are parsed and IP→domain pairs cached.
+// 2. DNSCache uses a shared_mutex for fast concurrent reads in FP threads.
+// 3. parseDNSResponse() stores both network-byte-order and host-byte-order IP
+//    representations so lookups work regardless of storage convention.
+// 4. classifyFlow() consults the DNS cache before falling back to port heuristics.
 // =============================================================================
+
+// Thread-safe DNS cache with TTL and size-bounded eviction
+class DNSCache {
+public:
+    void recordMapping(uint32_t ip, const std::string& domain) {
+        std::unique_lock<std::shared_mutex> lock(mutex_);
+        cache_[ip] = {domain, std::chrono::steady_clock::now()};
+    }
+
+    std::optional<std::string> lookup(uint32_t ip) const {
+        std::shared_lock<std::shared_mutex> lock(mutex_);
+        auto it = cache_.find(ip);
+        if (it == cache_.end()) return std::nullopt;
+        auto age = std::chrono::steady_clock::now() - it->second.ts;
+        if (age > std::chrono::minutes(5)) return std::nullopt;
+        return it->second.domain;
+    }
+
+    size_t size() const {
+        std::shared_lock<std::shared_mutex> lock(mutex_);
+        return cache_.size();
+    }
+
+private:
+    struct Entry { std::string domain; std::chrono::steady_clock::time_point ts; };
+    mutable std::shared_mutex mutex_;
+    std::unordered_map<uint32_t, Entry> cache_;
+};
+
+static DNSCache g_dns_cache;
+static DPI::FlowLogger g_flow_logger("flows.json", 3);
+
+// Legacy per-packet DNS map (kept for addDnsMapping callers; now also feeds DNSCache)
 namespace {
 std::unordered_map<uint32_t, std::string> g_ip_to_domain;
 std::queue<uint32_t> g_dns_fifo;
 std::mutex g_dns_mutex;
 const size_t MAX_DNS_CACHE_SIZE = 10000;
 
-void addDnsMapping(uint32_t ip, const std::string &domain) {
-  std::lock_guard<std::mutex> lock(g_dns_mutex);
-  if (g_ip_to_domain.find(ip) == g_ip_to_domain.end()) {
-    g_dns_fifo.push(ip);
-  }
-  g_ip_to_domain[ip] = domain;
-
-  // Eviction strategy: remove oldest entries if size exceeds limit
-  while (g_ip_to_domain.size() > MAX_DNS_CACHE_SIZE && !g_dns_fifo.empty()) {
-    uint32_t oldest_ip = g_dns_fifo.front();
-    g_dns_fifo.pop();
-    g_ip_to_domain.erase(oldest_ip);
-  }
+void addDnsMapping(uint32_t ip, const std::string& domain) {
+    // Feed the modern DNSCache
+    g_dns_cache.recordMapping(ip, domain);
+    // Also maintain legacy map
+    std::lock_guard<std::mutex> lock(g_dns_mutex);
+    if (g_ip_to_domain.find(ip) == g_ip_to_domain.end()) g_dns_fifo.push(ip);
+    g_ip_to_domain[ip] = domain;
+    while (g_ip_to_domain.size() > MAX_DNS_CACHE_SIZE && !g_dns_fifo.empty()) {
+        g_ip_to_domain.erase(g_dns_fifo.front());
+        g_dns_fifo.pop();
+    }
 }
 
 void parseDNS(const uint8_t *payload, size_t length) {
@@ -378,6 +411,33 @@ private:
             rules_->isBlocked(pkt.tuple.src_ip, flow.app_type, flow.sni);
       }
 
+      // Log flow snapshot for JSON dashboard
+      {
+        auto now_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
+            std::chrono::system_clock::now().time_since_epoch()).count();
+        auto ip4str = [](uint32_t ip) -> std::string {
+          char buf[20];
+          snprintf(buf, sizeof(buf), "%u.%u.%u.%u",
+                   ip & 0xFF, (ip >> 8) & 0xFF, (ip >> 16) & 0xFF, (ip >> 24) & 0xFF);
+          return std::string(buf);
+        };
+        DPI::FlowSnapshot snap;
+        snap.src_ip       = ip4str(pkt.tuple.src_ip);
+        snap.dst_ip       = ip4str(pkt.tuple.dst_ip);
+        snap.src_port     = pkt.tuple.src_port;
+        snap.dst_port     = pkt.tuple.dst_port;
+        snap.protocol     = pkt.tuple.protocol;
+        snap.domain       = flow.sni;
+        snap.app_name     = appTypeToString(flow.app_type);
+        snap.packets      = flow.packets;
+        snap.bytes        = flow.bytes;
+        snap.blocked      = flow.blocked;
+        snap.is_quic      = (pkt.tuple.protocol == 17 && pkt.tuple.dst_port == 443);
+        snap.first_seen_ms = now_ms - static_cast<int64_t>(flow.packets * 10);
+        snap.last_seen_ms  = now_ms;
+        g_flow_logger.record(snap);
+      }
+
       // Count packet stats (always, but NOT app classification counts here)
 
       // Forward or drop
@@ -430,22 +490,17 @@ private:
       }
     }
 
-    // DNS (extract mappings for feature 1, and mark flow as DNS)
+    // DNS — parse responses to populate the DNS cache
     if (pkt.tuple.dst_port == 53 || pkt.tuple.src_port == 53) {
-      if (pkt.tuple.src_port == 53 && pkt.payload_length > 0) {
-        parseDNS(pkt.data.data() + pkt.payload_offset, pkt.payload_length);
-      }
       flow.app_type = AppType::DNS;
       flow.classified = true;
+      if (pkt.tuple.src_port == 53 && pkt.payload_length > 12) {
+        parseDNS(pkt.data.data() + pkt.payload_offset, pkt.payload_length);
+      }
       return;
     }
 
-    // 3. IP-range fingerprinting (runs when DNS + SNI both fail)
-    // detectAppFromIP() returns a human-readable name; sniToAppType needs
-    // lowercase. On port 443 we store a soft guess (classified stays false) so
-    // a subsequent TLS Client Hello can still override with the true SNI
-    // domain. On all other ports there is no TLS handshake, so classify
-    // permanently.
+    // 3. IP-range fingerprinting (soft guess on port 443, permanent elsewhere)
     {
       std::string app_name = detectAppFromIP(pkt.tuple.dst_ip);
       if (app_name != "HTTPS") {
@@ -455,21 +510,44 @@ private:
         AppType detected = sniToAppType(lower);
         if (detected != AppType::UNKNOWN && detected != AppType::HTTPS) {
           flow.app_type = detected;
-          if (flow.sni.empty())
-            flow.sni = app_name;
+          if (flow.sni.empty()) flow.sni = app_name;
           if (pkt.tuple.dst_port != 443) {
-            flow.classified = true; // permanent — no TLS SNI will arrive
+            flow.classified = true;
           }
           return;
         }
       }
     }
 
-    // 4. Port-based fallback — do NOT mark as classified so SNI can be picked
-    // up from a subsequent Client Hello packet on the same flow.
+    // 4a. DNS cache lookup — classify flows by destination IP (DoH, cached OS)
+    if (flow.sni.empty()) {
+      auto cached_domain = g_dns_cache.lookup(pkt.tuple.dst_ip);
+      if (cached_domain) {
+        flow.sni = *cached_domain;
+        flow.app_type = sniToAppType(*cached_domain);
+        if (flow.app_type != AppType::UNKNOWN) {
+          flow.classified = true;
+          return;
+        }
+      }
+    }
+
+    // 4b. QUIC SNI extraction for UDP port 443 (HTTP/3)
+    if (pkt.tuple.protocol == 17 && pkt.tuple.dst_port == 443 &&
+        pkt.payload_length > 20) {
+      const uint8_t* payload = pkt.data.data() + pkt.payload_offset;
+      auto sni = QUICSNIExtractor::extract(payload, pkt.payload_length);
+      if (sni) {
+        flow.sni = *sni;
+        flow.app_type = sniToAppType(*sni);
+        flow.classified = true;
+        return;
+      }
+    }
+
+    // 5. Port-based fallback — don't mark classified, wait for SNI
     if (pkt.tuple.dst_port == 443) {
       flow.app_type = AppType::HTTPS;
-      // Do NOT set flow.classified = true here — wait for SNI
     } else if (pkt.tuple.dst_port == 80) {
       flow.app_type = AppType::HTTP;
     }
@@ -605,6 +683,7 @@ public:
     }
 
     // Start all threads
+    g_flow_logger.start();
     for (auto &fp : fps_)
       fp->start();
     for (auto &lb : lbs_)
@@ -793,6 +872,7 @@ public:
         stats_thread.join();
     } else {
       // Print report
+      g_flow_logger.stop();
       printReport();
     }
 
