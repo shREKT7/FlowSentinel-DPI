@@ -515,7 +515,6 @@ private:
         AppType detected = sniToAppType(lower);
         if (detected != AppType::UNKNOWN && detected != AppType::HTTPS) {
           flow.app_type = detected;
-          if (flow.sni.empty()) flow.sni = app_name;
           if (pkt.tuple.dst_port != 443) {
             flow.classified = true;
           }

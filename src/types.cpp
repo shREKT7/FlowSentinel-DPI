@@ -168,8 +168,8 @@ AppType sniToAppType(const std::string &sni) {
     return AppType::SPOTIFY;
 
   // Zoom
-  if (s.find("zoom.us") != std::string::npos ||
-      s.find("zoomgov.com") != std::string::npos)
+  if (s.find("zoom") != std::string::npos ||
+      s.find("zoomgov") != std::string::npos)
     return AppType::ZOOM;
 
   // Discord
@@ -188,73 +188,74 @@ AppType sniToAppType(const std::string &sni) {
       s.find("1.1.1.1") != std::string::npos)
     return AppType::CLOUDFLARE;
 
-  // OpenAI / ChatGPT
-  if (s.find("openai.com") != std::string::npos ||
-      s.find("chatgpt.com") != std::string::npos ||
-      s.find("oaistatic.com") != std::string::npos ||
-      s.find("oaiusercontent.com") != std::string::npos ||
-      s.find("auth0.openai") != std::string::npos)
+  // OpenAI / ChatGPT — extended CDN patterns
+  if (s.find("openai") != std::string::npos ||
+      s.find("chatgpt") != std::string::npos ||
+      s.find("oaistatic") != std::string::npos ||
+      s.find("oaiusercontent") != std::string::npos ||
+      s.find("openaiapi") != std::string::npos ||
+      s.find("sora.com") != std::string::npos)
     return AppType::OPENAI;
 
   // Hotstar / Disney+
   if (s.find("hotstar") != std::string::npos ||
       s.find("disney") != std::string::npos ||
-      s.find("dssott.com") != std::string::npos ||
-      s.find("bamgrid.com") != std::string::npos ||
-      s.find("starott.com") != std::string::npos ||
-      s.find("mxplay.com") != std::string::npos)
+      s.find("dssott") != std::string::npos ||
+      s.find("bamgrid") != std::string::npos ||
+      s.find("starott") != std::string::npos ||
+      s.find("mxplay") != std::string::npos)
     return AppType::HOTSTAR;
 
   // Reddit
-  if (s.find("reddit.com") != std::string::npos ||
+  if (s.find("reddit") != std::string::npos ||
       s.find("redd.it") != std::string::npos ||
-      s.find("redditmedia.com") != std::string::npos ||
-      s.find("redditstatic.com") != std::string::npos ||
-      s.find("reddituploads.com") != std::string::npos)
+      s.find("redditmedia") != std::string::npos ||
+      s.find("redditstatic") != std::string::npos ||
+      s.find("reddituploads") != std::string::npos)
     return AppType::REDDIT;
 
   // Twitch
-  if (s.find("twitch.tv") != std::string::npos ||
-      s.find("twitchsvc.net") != std::string::npos ||
-      s.find("jtvnw.net") != std::string::npos ||
-      s.find("twitchapps.com") != std::string::npos ||
-      s.find("ext-twitch.tv") != std::string::npos)
+  if (s.find("twitch") != std::string::npos ||
+      s.find("twitchsvc") != std::string::npos ||
+      s.find("jtvnw") != std::string::npos ||
+      s.find("twitchapps") != std::string::npos ||
+      s.find("ext-twitch") != std::string::npos)
     return AppType::TWITCH;
 
   // LinkedIn
-  if (s.find("linkedin.com") != std::string::npos ||
-      s.find("licdn.com") != std::string::npos ||
-      s.find("linkedin-ei.com") != std::string::npos)
+  if (s.find("linkedin") != std::string::npos ||
+      s.find("licdn") != std::string::npos ||
+      s.find("linkedin-ei") != std::string::npos)
     return AppType::LINKEDIN;
 
   // Snapchat
-  if (s.find("snapchat.com") != std::string::npos ||
+  if (s.find("snapchat") != std::string::npos ||
       s.find("snap.com") != std::string::npos ||
-      s.find("snapkit.com") != std::string::npos)
+      s.find("snapkit") != std::string::npos)
     return AppType::SNAPCHAT;
 
   // Pinterest
-  if (s.find("pinterest.com") != std::string::npos ||
-      s.find("pinimg.com") != std::string::npos)
+  if (s.find("pinterest") != std::string::npos ||
+      s.find("pinimg") != std::string::npos)
     return AppType::PINTEREST;
 
   // Dropbox
-  if (s.find("dropbox.com") != std::string::npos ||
-      s.find("dropboxstatic.com") != std::string::npos ||
-      s.find("dropboxusercontent.com") != std::string::npos)
+  if (s.find("dropbox") != std::string::npos ||
+      s.find("dropboxstatic") != std::string::npos ||
+      s.find("dropboxusercontent") != std::string::npos)
     return AppType::DROPBOX;
 
   // Slack
-  if (s.find("slack.com") != std::string::npos ||
-      s.find("slack-edge.com") != std::string::npos ||
-      s.find("slack-msgs.com") != std::string::npos ||
-      s.find("slack-files.com") != std::string::npos ||
-      s.find("slackb.com") != std::string::npos)
+  if (s.find("slack") != std::string::npos ||
+      s.find("slack-edge") != std::string::npos ||
+      s.find("slack-msgs") != std::string::npos ||
+      s.find("slack-files") != std::string::npos ||
+      s.find("slackb") != std::string::npos)
     return AppType::SLACK;
 
   // Cloudflare CDN catch-all
-  if (s.find("cloudflare.com") != std::string::npos ||
-      s.find("cloudflareinsights.com") != std::string::npos ||
+  if (s.find("cloudflare") != std::string::npos ||
+      s.find("cloudflareinsights") != std::string::npos ||
       s.find("cfdata.org") != std::string::npos)
     return AppType::CLOUDFLARE;
 
