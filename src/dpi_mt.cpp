@@ -71,6 +71,67 @@ private:
 static DNSCache g_dns_cache;
 static DPI::FlowLogger g_flow_logger("flows.json", 3);
 
+// Pre-populate DNS cache with well-known service IP ranges
+// so flows are classified even without capturing DNS responses
+static void populateKnownIPs() {
+    // Cloudflare CDN (used by many sites including Discord, Hotstar CDN)
+    // These are anycast ranges — we map representative IPs
+    struct { const char* ip; const char* domain; } known[] = {
+        // OpenAI
+        {"104.18.32.47",   "chat.openai.com"},
+        {"104.18.33.47",   "chat.openai.com"},
+        {"172.64.155.188", "api.openai.com"},
+        {"172.64.155.209", "oaistatic.com"},
+        // Reddit
+        {"151.101.65.140",  "www.reddit.com"},
+        {"151.101.1.140",   "www.reddit.com"},
+        {"151.101.129.140", "www.reddit.com"},
+        {"151.101.193.140", "www.reddit.com"},
+        // Hotstar
+        {"34.226.14.100",  "hotstar.com"},
+        {"52.86.243.43",   "hotstar.com"},
+        // Spotify
+        {"35.186.224.53",  "scdn.co"},
+        {"35.186.224.47",  "open.spotify.com"},
+        {"35.186.227.52",  "open.spotify.com"},
+        // Discord
+        {"162.159.128.233","discord.com"},
+        {"162.159.129.233","discord.com"},
+        // Cloudflare
+        {"1.1.1.1",        "cloudflare.com"},
+        {"1.0.0.1",        "cloudflare.com"},
+        // Google DNS over HTTPS
+        {"8.8.8.8",        "dns.google"},
+        {"8.8.4.4",        "dns.google"},
+    };
+
+    auto parseIPStr = [](const char* ip) -> uint32_t {
+        uint32_t result = 0;
+        int octet = 0, shift = 0;
+        for (const char* p = ip; *p; p++) {
+            if (*p == '.') {
+                result |= (octet << shift);
+                shift += 8;
+                octet = 0;
+            } else {
+                octet = octet * 10 + (*p - '0');
+            }
+        }
+        return result | (octet << shift);
+    };
+
+    for (const auto& entry : known) {
+        uint32_t ip = parseIPStr(entry.ip);
+        g_dns_cache.recordMapping(ip, entry.domain);
+        // Also store byte-swapped for reverse lookup
+        uint32_t swapped = ((ip & 0xFF) << 24) | (((ip >> 8) & 0xFF) << 16) |
+                           (((ip >> 16) & 0xFF) << 8) | ((ip >> 24) & 0xFF);
+        g_dns_cache.recordMapping(swapped, entry.domain);
+    }
+    std::cout << "[DNSCache] Pre-populated with " << sizeof(known)/sizeof(known[0])
+              << " known service IPs\n";
+}
+
 // Legacy per-packet DNS map (kept for addDnsMapping callers; now also feeds DNSCache)
 namespace {
 std::unordered_map<uint32_t, std::string> g_ip_to_domain;
@@ -456,6 +517,26 @@ private:
   }
 
   void classifyFlow(Packet &pkt, FlowEntry &flow) {
+    // If this flow has no SNI yet, check if the REVERSE direction flow
+    // already has one (inbound packets arrive after outbound SNI is captured)
+    if (flow.sni.empty()) {
+        FiveTuple reverse_tuple;
+        reverse_tuple.src_ip   = pkt.tuple.dst_ip;
+        reverse_tuple.dst_ip   = pkt.tuple.src_ip;
+        reverse_tuple.src_port = pkt.tuple.dst_port;
+        reverse_tuple.dst_port = pkt.tuple.src_port;
+        reverse_tuple.protocol = pkt.tuple.protocol;
+
+        auto rev_it = flows_.find(reverse_tuple);
+        if (rev_it != flows_.end() && !rev_it->second.sni.empty()) {
+            // Copy domain and classification from the outbound flow
+            flow.sni        = rev_it->second.sni;
+            flow.app_type   = rev_it->second.app_type;
+            flow.classified = true;
+            return;  // Done — no further inspection needed
+        }
+    }
+
     // 1. Check DNS correlation table (IP -> domain)
     {
       std::lock_guard<std::mutex> lock(g_dns_mutex);
@@ -687,6 +768,7 @@ public:
     }
 
     // Start all threads
+    populateKnownIPs();
     g_flow_logger.start();
     for (auto &fp : fps_)
       fp->start();
@@ -747,6 +829,12 @@ public:
               for (auto& [tuple, flow] : fp->getFlows()) {
                 if (!flow.sni.empty()) {
                   domain_bytes[flow.sni] += flow.bytes;
+                } else {
+                  // Try DNS cache lookup for this destination IP
+                  auto cached = g_dns_cache.lookup(tuple.dst_ip);
+                  if (cached) {
+                    domain_bytes[*cached] += flow.bytes;
+                  }
                 }
               }
             }
@@ -756,7 +844,7 @@ public:
               [](const auto& a, const auto& b) { return a.second > b.second; });
             int shown = 0;
             for (auto& [domain, bytes] : sorted_domains) {
-              if (shown++ >= 8) break;
+              if (shown++ >= 15) break;
               std::string short_dom = domain.length() > 35
                   ? domain.substr(0, 32) + "..." : domain;
               std::cout << "  " << std::left << std::setw(38) << short_dom

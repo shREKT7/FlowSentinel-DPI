@@ -112,8 +112,8 @@ AppType sniToAppType(const std::string &sni) {
   // Twitter / X
   if (s.find("twitter") != std::string::npos ||
       s.find("twimg") != std::string::npos ||
-      s.find("x.com") != std::string::npos ||
-      s.find("t.co") != std::string::npos)
+      s.find("x.com") == 0 ||
+      s.find("t.co") == 0)
     return AppType::TWITTER;
 
   // Netflix
