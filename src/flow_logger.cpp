@@ -3,6 +3,10 @@
 #include <sstream>
 #include <fstream>
 
+#ifdef _WIN32
+#include <windows.h>
+#endif
+
 namespace DPI {
 
 FlowLogger::FlowLogger(const std::string& output_path, int flush_interval_sec)
@@ -61,8 +65,21 @@ void FlowLogger::flush() {
     }
     f << json;
     f.close();
+#ifdef _WIN32
+    // Windows: std::rename fails if destination exists — use MoveFileExA
+    if (!::MoveFileExA(tmp.c_str(), output_path_.c_str(), MOVEFILE_REPLACE_EXISTING)) {
+        std::cerr << "[FlowLogger] MoveFileExA failed (error " << ::GetLastError() << ")\n";
+        // Fallback: delete then move
+        ::DeleteFileA(output_path_.c_str());
+        if (!::MoveFileA(tmp.c_str(), output_path_.c_str())) {
+            std::cerr << "[FlowLogger] MoveFileA fallback also failed (error "
+                      << ::GetLastError() << ")\n";
+        }
+    }
+#else
     if (std::rename(tmp.c_str(), output_path_.c_str()) != 0)
         std::cerr << "[FlowLogger] Rename failed: " << tmp << " -> " << output_path_ << "\n";
+#endif
 }
 
 void FlowLogger::flushThreadFunc() {

@@ -24,10 +24,18 @@ app.add_middleware(
 )
 
 FLOWS_FILE_CANDIDATES = [
-    Path("flows.json"),
-    Path("../../flows.json"),
-    Path("../flows.json"),
+    # Environment variable override (highest priority)
     Path(os.environ.get("FLOWS_JSON_PATH", "flows.json")),
+    # Current directory
+    Path("flows.json"),
+    # Common relative paths from dashboard/backend/
+    Path("../../flows.json"),            # project root
+    Path("../../build/flows.json"),      # build directory
+    Path("../../../flows.json"),         # one level higher
+    Path("../../../build/flows.json"),   # build dir one level higher
+    # Absolute path fallback using script location
+    Path(__file__).parent.parent.parent / "flows.json",
+    Path(__file__).parent.parent.parent / "build" / "flows.json",
 ]
 
 def find_flows_file() -> Optional[Path]:

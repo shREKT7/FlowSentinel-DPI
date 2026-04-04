@@ -363,6 +363,11 @@ public:
 
   uint64_t processed() const { return processed_; }
 
+  // Returns read-only reference to the flow map (used by live stats display)
+  const std::unordered_map<FiveTuple, FlowEntry, FiveTupleHash>& getFlows() const {
+    return flows_;
+  }
+
 private:
   int id_;
   Rules *rules_;
@@ -732,6 +737,39 @@ public:
             std::cout << std::setw(12) << std::left << appTypeToString(app)
                       << " " << std::setw(3) << std::right
                       << static_cast<int>(pct) << "%\n";
+          }
+
+          // Top detected domains by bytes transferred
+          std::cout << "\nTop Domains Detected\n";
+          std::cout << "--------------------\n";
+          {
+            std::unordered_map<std::string, uint64_t> domain_bytes;
+            for (auto& fp : fps_) {
+              for (auto& [tuple, flow] : fp->getFlows()) {
+                if (!flow.sni.empty()) {
+                  domain_bytes[flow.sni] += flow.bytes;
+                }
+              }
+            }
+            std::vector<std::pair<std::string, uint64_t>> sorted_domains(
+              domain_bytes.begin(), domain_bytes.end());
+            std::sort(sorted_domains.begin(), sorted_domains.end(),
+              [](const auto& a, const auto& b) { return a.second > b.second; });
+            int shown = 0;
+            for (auto& [domain, bytes] : sorted_domains) {
+              if (shown++ >= 8) break;
+              std::string short_dom = domain.length() > 35
+                  ? domain.substr(0, 32) + "..." : domain;
+              std::cout << "  " << std::left << std::setw(38) << short_dom
+                        << " " << std::right << std::setw(8);
+              if (bytes < 1024) std::cout << bytes << " B";
+              else if (bytes < 1024*1024) std::cout << (bytes/1024) << " KB";
+              else std::cout << (bytes/(1024*1024)) << " MB";
+              std::cout << "\n";
+            }
+            if (sorted_domains.empty()) {
+              std::cout << "  (waiting for SNI data...)\n";
+            }
           }
           std::cout << std::flush;
         }

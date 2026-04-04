@@ -82,6 +82,15 @@ enum class AppType {
   GITHUB,
   CLOUDFLARE,
   OPENAI,
+  // Extended app types
+  HOTSTAR,
+  REDDIT,
+  TWITCH,
+  LINKEDIN,
+  SNAPCHAT,
+  PINTEREST,
+  DROPBOX,
+  SLACK,
   // Add more as needed
   APP_COUNT // Keep this last for counting
 };
