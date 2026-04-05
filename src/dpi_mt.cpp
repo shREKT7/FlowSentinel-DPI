@@ -493,7 +493,26 @@ private:
         snap.src_port     = pkt.tuple.src_port;
         snap.dst_port     = pkt.tuple.dst_port;
         snap.protocol     = pkt.tuple.protocol;
-        snap.domain       = flow.sni;
+        
+        // Domain: use flow.sni if available, otherwise try DNS cache
+        if (!flow.sni.empty()) {
+            snap.domain = flow.sni;
+        } else {
+            // Last-resort DNS cache lookup at snapshot time
+            auto cached = g_dns_cache.lookup(pkt.tuple.dst_ip);
+            if (!cached) cached = g_dns_cache.lookup(pkt.tuple.src_ip);
+            if (cached && !cached->empty()) {
+                snap.domain   = *cached;
+                // Also backfill flow.sni so future snapshots don't need the lookup
+                flow.sni      = *cached;
+                if (flow.app_type == AppType::UNKNOWN || flow.app_type == AppType::HTTPS) {
+                    flow.app_type = sniToAppType(*cached);
+                }
+            } else {
+                snap.domain = "";
+            }
+        }
+        
         snap.app_name     = appTypeToString(flow.app_type);
         snap.packets      = flow.packets;
         snap.bytes        = flow.bytes;
@@ -607,7 +626,7 @@ private:
     // 4a. DNS cache lookup — classify flows by destination IP (DoH, cached OS)
     if (flow.sni.empty()) {
       auto cached_domain = g_dns_cache.lookup(pkt.tuple.dst_ip);
-      if (cached_domain) {
+      if (cached_domain && !cached_domain->empty()) {
         flow.sni = *cached_domain;
         flow.app_type = sniToAppType(*cached_domain);
         if (flow.app_type != AppType::UNKNOWN) {
