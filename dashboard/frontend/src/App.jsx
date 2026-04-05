@@ -1,468 +1,433 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } from 'recharts';
-import { fetchStats, fetchSites, fetchFlows, fetchStatus, humanBytes, timeAgo } from './api';
+import { useState, useEffect, useCallback } from "react"
+import {
+  PieChart, Pie, Cell, BarChart, Bar,
+  XAxis, YAxis, Tooltip, ResponsiveContainer, Legend
+} from "recharts"
+import { fetchStats, fetchSites, fetchFlows, fetchStatus, humanBytes, timeAgo } from "./api.js"
 
 const APP_COLORS = {
-  YOUTUBE:   '#FF0000', GOOGLE:    '#4285F4', FACEBOOK:  '#1877F2',
-  INSTAGRAM: '#E1306C', 'TWITTER/X':'#1DA1F2', NETFLIX:   '#E50914',
-  AMAZON:    '#FF9900', MICROSOFT: '#00BCF2', APPLE:     '#86868b',
-  TELEGRAM:  '#2CA5E0', TIKTOK:    '#69C9D0', SPOTIFY:   '#1DB954',
-  ZOOM:      '#2D8CFF', DISCORD:   '#5865F2', GITHUB:    '#6e40c9',
-  CLOUDFLARE:'#F48120', OPENAI:    '#10a37f', HOTSTAR:   '#ff2d55',
-  REDDIT:    '#FF4500', TWITCH:    '#9146FF', LINKEDIN:  '#0A66C2',
-  DNS:       '#10b981', HTTPS:     '#334155', HTTP:      '#475569',
-  QUIC:      '#7c3aed', UNKNOWN:   '#1e293b',
+  YOUTUBE:"#FF0000",GOOGLE:"#4285F4",FACEBOOK:"#1877F2",INSTAGRAM:"#E1306C",
+  "TWITTER/X":"#1DA1F2",NETFLIX:"#E50914",AMAZON:"#FF9900",MICROSOFT:"#00BCF2",
+  APPLE:"#86868b",TELEGRAM:"#2CA5E0",TIKTOK:"#69C9D0",SPOTIFY:"#1DB954",
+  ZOOM:"#2D8CFF",DISCORD:"#5865F2",GITHUB:"#6e40c9",CLOUDFLARE:"#F48120",
+  OPENAI:"#10a37f",HOTSTAR:"#ff2d55",REDDIT:"#FF4500",TWITCH:"#9146FF",
+  LINKEDIN:"#0A66C2",DNS:"#10b981",HTTPS:"#475569",HTTP:"#64748b",
+  QUIC:"#7c3aed",UNKNOWN:"#1e293b",
 }
-const getColor = (app) => APP_COLORS[app?.toUpperCase?.()] || '#334155'
+const getColor = (app) => APP_COLORS[(app||"").toUpperCase()] || "#334155"
 
-function Sidebar({ tab, setTab, status, onRefresh, loading }) {
-  const tabs = ['Overview', 'Sites Visited', 'Live Flows', 'Blocked']
-  const ok = status?.flows_file_found
-
-  return (
-    <div style={{
-      width: 220, flexShrink: 0,
-      background: 'var(--surface)',
-      borderRight: '1px solid var(--border)',
-      display: 'flex', flexDirection: 'column',
-      height: '100vh', overflow: 'hidden',
-    }}>
-      <div style={{ padding: '20px 16px 16px', borderBottom: '1px solid var(--border)' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
-          <div style={{
-            width: 32, height: 32, borderRadius: 8,
-            background: 'linear-gradient(135deg, #00d4ff22, #7c3aed44)',
-            border: '1px solid var(--cyan)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: 16, fontWeight: 700, color: 'var(--cyan)',
-          }}>⬡</div>
-          <div>
-            <div style={{ fontWeight: 600, fontSize: 14, color: 'var(--text)' }}>FlowSentinel</div>
-            <div style={{ fontSize: 10, color: 'var(--muted)', letterSpacing: '0.08em', textTransform: 'uppercase' }}>DPI Dashboard</div>
-          </div>
-        </div>
-      </div>
-      <div style={{ padding: '12px 16px', borderBottom: '1px solid var(--border)' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-          <div className="pulse-dot" style={{ background: ok ? 'var(--emerald)' : 'var(--red)' }} />
-          <span style={{ fontSize: 11, color: ok ? 'var(--emerald)' : 'var(--red)', fontWeight: 500 }}>
-            {ok ? 'ENGINE ACTIVE' : 'ENGINE OFFLINE'}
-          </span>
-        </div>
-        {ok && (
-          <>
-            <div style={{ fontFamily: 'var(--mono)', fontSize: 11, color: 'var(--muted2)', marginBottom: 2 }}>
-              {status?.total_flows || 0} flows tracked
-            </div>
-            <div style={{ fontFamily: 'var(--mono)', fontSize: 10, color: 'var(--muted)', wordBreak: 'break-all' }}>
-              {status?.flows_file || 'flows.json'}
-            </div>
-          </>
-        )}
-      </div>
-      <nav style={{ flex: 1, padding: '8px 0' }}>
-        {tabs.map(t => (
-          <button key={t} onClick={() => setTab(t)} style={{
-            display: 'block', width: '100%', textAlign: 'left',
-            background: 'none', border: 'none',
-            borderLeft: tab === t ? '2px solid var(--cyan)' : '2px solid transparent',
-            padding: '9px 16px',
-            color: tab === t ? 'var(--cyan)' : 'var(--muted2)',
-            fontFamily: 'var(--sans)', fontSize: 13,
-            fontWeight: tab === t ? 500 : 400,
-            cursor: 'pointer', transition: 'all 0.1s',
-            borderRadius: 0,
-          }}>{t}</button>
-        ))}
-      </nav>
-      <div style={{ padding: '12px 16px', borderTop: '1px solid var(--border)' }}>
-        <button onClick={onRefresh} style={{ width: '100%' }}>
-          {loading ? '…' : '↻  Refresh'}
-        </button>
-      </div>
-    </div>
-  )
+const mono = { fontFamily:"'JetBrains Mono',monospace" }
+const card = {
+  background:"#0d1421", border:"1px solid #1a2540",
+  borderRadius:8, padding:"16px 20px",
 }
 
-function StatCard({ label, value, sub, accent = 'var(--cyan)' }) {
-  return (
-    <div style={{
-      background: 'var(--surface)',
-      border: '1px solid var(--border)',
-      borderLeft: `3px solid ${accent}`,
-      borderRadius: 8, padding: '16px 20px',
-      flex: 1, minWidth: 160,
-      animation: 'count-up 0.4s ease both',
-    }}>
-      <div style={{
-        fontSize: 10, color: 'var(--muted)', letterSpacing: '0.1em',
-        textTransform: 'uppercase', fontFamily: 'var(--mono)', marginBottom: 8,
-      }}>{label}</div>
-      <div style={{ fontSize: 28, fontWeight: 600, color: 'var(--text)', fontFamily: 'var(--mono)', lineHeight: 1 }}>{value}</div>
-      {sub && <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 6, fontFamily: 'var(--mono)' }}>{sub}</div>}
-    </div>
-  )
-}
-
-function AppBadge({ app }) {
-  const color = getColor(app)
+function Badge({ app }) {
+  const c = getColor(app)
   return (
     <span style={{
-      display: 'inline-block', padding: '2px 10px', borderRadius: 4,
-      fontSize: 11, fontWeight: 600, letterSpacing: '0.05em',
-      fontFamily: 'var(--mono)',
-      background: color + '33',
-      color: color,
-      border: `1px solid ${color}66`,
-    }}>{app || 'UNKNOWN'}</span>
+      ...mono, display:"inline-block", padding:"2px 10px", borderRadius:4,
+      fontSize:11, fontWeight:600, letterSpacing:"0.05em",
+      background:c+"22", color:c, border:`1px solid ${c}44`,
+    }}>{app||"UNKNOWN"}</span>
   )
 }
 
-function Panel({ title, children, style = {} }) {
+function StatCard({ label, value, sub, accent="#00d4ff" }) {
   return (
     <div style={{
-      background: 'var(--surface)',
-      border: '1px solid var(--border)',
-      borderRadius: 10, padding: 20,
-      ...style,
+      ...card, flex:1, minWidth:160,
+      borderLeft:`3px solid ${accent}`,
     }}>
-      {title && (
-        <div style={{
-          fontSize: 11, color: 'var(--muted)', letterSpacing: '0.1em',
-          textTransform: 'uppercase', fontFamily: 'var(--mono)',
-          marginBottom: 16, fontWeight: 500,
-        }}>{title}</div>
-      )}
+      <div style={{
+        ...mono, fontSize:10, color:"#64748b",
+        letterSpacing:"0.1em", textTransform:"uppercase", marginBottom:8,
+      }}>{label}</div>
+      <div style={{ ...mono, fontSize:26, fontWeight:700, color:"#e2e8f0", lineHeight:1 }}>{value}</div>
+      {sub && <div style={{ ...mono, fontSize:11, color:"#64748b", marginTop:6 }}>{sub}</div>}
+    </div>
+  )
+}
+
+function Panel({ title, children, style={} }) {
+  return (
+    <div style={{ ...card, ...style }}>
+      {title && <div style={{
+        ...mono, fontSize:10, color:"#64748b",
+        letterSpacing:"0.12em", textTransform:"uppercase",
+        fontWeight:600, marginBottom:16,
+      }}>{title}</div>}
       {children}
     </div>
   )
 }
 
-function ChartTooltip({ active, payload, label }) {
+function ChartTip({ active, payload }) {
+  if (!active || !payload?.length) return null
+  const p = payload[0]
+  return (
+    <div style={{
+      background:"#0d1421", border:"1px solid #1a2540",
+      borderRadius:8, padding:"10px 14px",
+    }}>
+      <div style={{ ...mono, fontSize:12, color:"#e2e8f0" }}>
+        {p.name || p.payload?.app}
+      </div>
+      <div style={{ ...mono, fontSize:11, color:"#64748b" }}>
+        {humanBytes(p.value)} — {p.payload?.pct_bytes?.toFixed(1)}%
+      </div>
+    </div>
+  )
+}
+
+function BarTip({ active, payload, label }) {
   if (!active || !payload?.length) return null
   return (
     <div style={{
-      background: '#0d1421', border: '1px solid #1a2540',
-      borderRadius: 8, padding: '10px 14px', fontSize: 12,
+      background:"#0d1421", border:"1px solid #1a2540",
+      borderRadius:8, padding:"10px 14px",
     }}>
-      {payload.map((p, i) => (
-        <div key={i} style={{ color: p.color || 'var(--text)', fontFamily: 'var(--mono)' }}>
-          {p.name || label}: {typeof p.value === 'number' && p.value > 1000 ? humanBytes(p.value) : p.value} 
-          {p.payload?.pct_bytes ? ` (${p.payload.pct_bytes}%)` : ''}
-        </div>
-      ))}
+      <div style={{ ...mono, fontSize:12, color:"#e2e8f0" }}>{label}</div>
+      <div style={{ ...mono, fontSize:11, color:"#64748b" }}>{humanBytes(payload[0]?.value)}</div>
     </div>
   )
 }
 
 function Overview({ stats, sites }) {
-  const pieData = stats?.app_distribution?.filter(a => a.bytes > 0) || []
-  const topSites = sites?.slice?.(0, 8) || []
-  const barData = stats?.app_distribution?.slice?.(0, 8) || []
-    
+  const pie = stats?.app_distribution?.filter(a => a.bytes > 0) || []
+  const bars = stats?.app_distribution?.slice(0,8) || []
+  const topSites = sites?.slice(0,8) || []
+
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 24, paddingBottom: 40 }}>
-      {/* Row 1 - Stat cards */}
-      <div style={{ display: 'flex', gap: 16 }}>
-        <StatCard label="TOTAL FLOWS" value={stats?.total_flows || 0} accent="var(--cyan)" />
-        <StatCard label="DATA TRANSFERRED" value={stats?.total_bytes > 0 ? humanBytes(stats.total_bytes) : '0 B'} accent="var(--violet)" />
-        <StatCard label="UNIQUE DOMAINS" value={stats?.unique_domains || 0} accent="var(--emerald)" />
-        <StatCard label="BLOCKED FLOWS" value={stats?.blocked_flows || 0} accent="var(--red)" />
+    <div style={{ display:"flex", flexDirection:"column", gap:20 }}>
+      {/* Stat cards */}
+      <div style={{ display:"flex", gap:12, flexWrap:"wrap" }}>
+        <StatCard label="Total Flows"      value={stats?.total_flows?.toLocaleString() || "—"} accent="#00d4ff" />
+        <StatCard label="Data Transferred" value={stats?.total_bytes_human || "—"}
+                  sub={`${(stats?.total_packets||0).toLocaleString()} packets`} accent="#7c3aed" />
+        <StatCard label="Unique Domains"   value={stats?.unique_domains?.toLocaleString() || "—"} accent="#10b981" />
+        <StatCard label="Blocked Flows"    value={stats?.blocked_flows?.toLocaleString() || "0"} accent="#ef4444" />
       </div>
-      
-      {/* Row 2 - Panels */}
-      <div style={{ display: 'flex', gap: 16, height: 320 }}>
-        <Panel title="Traffic by Application" style={{ flex: '0 0 60%' }}>
-          {pieData.length > 0 ? (
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie data={pieData} cx="50%" cy="50%" innerRadius={65} outerRadius={110} paddingAngle={2} dataKey="bytes" nameKey="app">
-                  {pieData.map((entry, index) => <Cell key={`cell-${index}`} fill={getColor(entry.app)} stroke="none" />)}
-                </Pie>
-                <Tooltip content={<ChartTooltip />} />
-                <Legend verticalAlign="bottom" height={36} iconType="circle" wrapperStyle={{ fontSize: 11, fontFamily: 'var(--sans)' }} />
-              </PieChart>
-            </ResponsiveContainer>
-          ) : <div style={{textAlign: 'center', color: 'var(--muted)', marginTop: 80}}>No traffic data</div>}
+
+      {/* Charts row */}
+      <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:16 }}>
+        <Panel title="Traffic by Application">
+          {pie.length > 0 ? (
+            <>
+              <ResponsiveContainer width="100%" height={220}>
+                <PieChart>
+                  <Pie data={pie} dataKey="bytes" nameKey="app"
+                       innerRadius={60} outerRadius={95} paddingAngle={2}>
+                    {pie.map((e,i) => <Cell key={i} fill={getColor(e.app)} />)}
+                  </Pie>
+                  <Tooltip content={<ChartTip />} />
+                  <Legend
+                    formatter={(v) => (
+                      <span style={{ ...mono, color:"#94a3b8", fontSize:11 }}>{v}</span>
+                    )}
+                  />
+                </PieChart>
+              </ResponsiveContainer>
+            </>
+          ) : (
+            <div style={{ color:"#334155", textAlign:"center", padding:60, ...mono, fontSize:12 }}>
+              Waiting for data…
+            </div>
+          )}
         </Panel>
-        
-        <Panel title="Top Apps by Bytes" style={{ flex: '0 0 40%' }}>
-          {barData.length > 0 ? (
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={barData} layout="vertical" margin={{ top: 0, right: 30, left: 10, bottom: 0 }}>
-                <XAxis type="number" hide tickFormatter={humanBytes} />
-                <YAxis dataKey="app" type="category" width={90} stroke="var(--muted)" fontSize={11} tickLine={false} axisLine={false} />
-                <Tooltip content={<ChartTooltip />} cursor={{ fill: 'rgba(255,255,255,0.05)' }} />
-                <Bar dataKey="bytes" radius={[0, 4, 4, 0]}>
-                  {barData.map((entry, index) => <Cell key={`cell-${index}`} fill={getColor(entry.app)} />)}
+
+        <Panel title="Top Apps by Bytes">
+          {bars.length > 0 ? (
+            <ResponsiveContainer width="100%" height={220}>
+              <BarChart data={bars} layout="vertical" margin={{ left:8, right:40 }}>
+                <XAxis type="number" tick={{ fill:"#64748b", fontSize:10, fontFamily:"JetBrains Mono" }}
+                       tickFormatter={humanBytes} />
+                <YAxis type="category" dataKey="app" width={85}
+                       tick={{ fill:"#94a3b8", fontSize:11, fontFamily:"JetBrains Mono" }} />
+                <Tooltip content={<BarTip />} />
+                <Bar dataKey="bytes" radius={[0,4,4,0]}>
+                  {bars.map((e,i) => <Cell key={i} fill={getColor(e.app)} />)}
                 </Bar>
               </BarChart>
             </ResponsiveContainer>
-          ) : <div style={{textAlign: 'center', color: 'var(--muted)', marginTop: 80}}>No traffic data</div>}
+          ) : (
+            <div style={{ color:"#334155", textAlign:"center", padding:60, ...mono, fontSize:12 }}>
+              Waiting for data…
+            </div>
+          )}
         </Panel>
       </div>
-      
-      {/* Row 3 - Table */}
-      <Panel title="Top Sites">
-        <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: 12 }}>
+
+      {/* Top sites table */}
+      <Panel title="Top Sites by Traffic">
+        <table style={{ width:"100%", borderCollapse:"collapse" }}>
           <thead>
-            <tr style={{ color: 'var(--muted)', fontFamily: 'var(--sans)' }}>
-              <th style={{ padding: '8px 12px', borderBottom: '1px solid var(--border)' }}>#</th>
-              <th style={{ padding: '8px 12px', borderBottom: '1px solid var(--border)' }}>Domain</th>
-              <th style={{ padding: '8px 12px', borderBottom: '1px solid var(--border)' }}>App</th>
-              <th style={{ padding: '8px 12px', borderBottom: '1px solid var(--border)' }}>Bytes</th>
-              <th style={{ padding: '8px 12px', borderBottom: '1px solid var(--border)' }}>Packets</th>
-              <th style={{ padding: '8px 12px', borderBottom: '1px solid var(--border)' }}>Flows</th>
+            <tr style={{ borderBottom:"1px solid #1a2540" }}>
+              {["#","Domain","App","Bytes","Packets","Flows"].map(h => (
+                <th key={h} style={{
+                  textAlign:"left", padding:"6px 10px",
+                  fontSize:10, color:"#475569", fontWeight:600,
+                  textTransform:"uppercase", letterSpacing:"0.07em",
+                  fontFamily:"JetBrains Mono",
+                }}>{h}</th>
+              ))}
             </tr>
           </thead>
           <tbody>
-            {topSites.map((site, i) => (
-              <tr key={site.domain + i} style={{ borderBottom: '1px solid var(--border)', background: i % 2 === 0 ? 'var(--surface2)' : 'transparent' }}>
-                <td style={{ padding: '12px', color: 'var(--muted2)', fontFamily: 'var(--mono)' }}>{i + 1}</td>
-                <td style={{ padding: '12px', color: 'var(--text)', fontFamily: 'var(--mono)', maxWidth: 300, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={site.domain}>{site.domain.length > 45 ? site.domain.substring(0, 42) + '...' : site.domain}</td>
-                <td style={{ padding: '12px' }}><AppBadge app={site.app} /></td>
-                <td style={{ padding: '12px', fontFamily: 'var(--mono)' }}>{humanBytes(site.total_bytes)}</td>
-                <td style={{ padding: '12px', fontFamily: 'var(--mono)' }}>{(site.total_packets||0).toLocaleString()}</td>
-                <td style={{ padding: '12px', fontFamily: 'var(--mono)' }}>{site.flow_count}</td>
+            {topSites.map((s,i) => (
+              <tr key={i} style={{ borderBottom:"1px solid #0d1421" }}>
+                <td style={{ padding:"9px 10px", color:"#334155", ...mono, fontSize:11 }}>{i+1}</td>
+                <td style={{
+                  padding:"9px 10px", ...mono, fontSize:11,
+                  color: s.blocked ? "#ef4444" : "#c7d2fe",
+                  maxWidth:300, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap",
+                }}>{s.domain}</td>
+                <td style={{ padding:"9px 10px" }}><Badge app={s.app} /></td>
+                <td style={{ padding:"9px 10px", color:"#94a3b8", ...mono, fontSize:11 }}>{humanBytes(s.total_bytes)}</td>
+                <td style={{ padding:"9px 10px", color:"#64748b", ...mono, fontSize:11 }}>{(s.total_packets||0).toLocaleString()}</td>
+                <td style={{ padding:"9px 10px", color:"#64748b", ...mono, fontSize:11 }}>{s.flow_count}</td>
               </tr>
             ))}
+            {topSites.length === 0 && (
+              <tr><td colSpan={6} style={{ padding:40, textAlign:"center", color:"#334155", ...mono, fontSize:12 }}>
+                No data yet — start the DPI engine
+              </td></tr>
+            )}
           </tbody>
         </table>
-        {topSites.length === 0 && <div style={{ padding: '40px 0', textAlign: 'center', color: 'var(--muted)' }}>No domain data yet</div>}
       </Panel>
     </div>
   )
 }
 
 function SitesView({ sites }) {
-  const [search, setSearch] = useState('');
-  const [sortBy, setSortBy] = useState('bytes');
-  const [sortDesc, setSortDesc] = useState(true);
+  const [search, setSearch] = useState("")
+  const [sortKey, setSortKey] = useState("total_bytes")
+  const [sortDesc, setSortDesc] = useState(true)
 
-  const safeSites = sites || [];
-  const filtered = safeSites.filter(s => (s?.domain || '').toLowerCase().includes(search.toLowerCase()));
-  
-  const sorted = [...filtered].sort((a, b) => {
-    let cmp = 0;
-    if (sortBy === 'domain') {
-       cmp = (a?.domain || '').localeCompare(b?.domain || '');
-    }
-    else if (sortBy === 'bytes') cmp = (a?.total_bytes || 0) - (b?.total_bytes || 0);
-    else if (sortBy === 'packets') cmp = (a?.total_packets || 0) - (b?.total_packets || 0);
-    return sortDesc ? -cmp : cmp;
-  });
+  const toggleSort = (key) => {
+    if (sortKey === key) setSortDesc(d => !d)
+    else { setSortKey(key); setSortDesc(true) }
+  }
 
-  const handleSort = (key) => {
-    if (sortBy === key) setSortDesc(!sortDesc);
-    else { setSortBy(key); setSortDesc(true); }
-  };
+  const filtered = (sites || [])
+    .filter(s => !search || s.domain?.toLowerCase().includes(search.toLowerCase()))
+    .sort((a,b) => sortDesc
+      ? (b[sortKey]||0) - (a[sortKey]||0)
+      : (a[sortKey]||0) - (b[sortKey]||0)
+    )
 
-  const SortIcon = ({ col }) => {
-    if (sortBy !== col) return <span style={{ opacity: 0.3 }}>↕</span>;
-    return <span>{sortDesc ? '↓' : '↑'}</span>;
-  };
+  const SortHeader = ({ k, label }) => (
+    <th onClick={() => toggleSort(k)} style={{
+      textAlign:"left", padding:"8px 10px",
+      fontSize:10, color: sortKey===k ? "#00d4ff" : "#475569",
+      fontWeight:600, textTransform:"uppercase", letterSpacing:"0.07em",
+      fontFamily:"JetBrains Mono", cursor:"pointer", userSelect:"none",
+      whiteSpace:"nowrap",
+    }}>
+      {label} {sortKey===k ? (sortDesc?"↓":"↑") : ""}
+    </th>
+  )
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 20, height: '100%', paddingBottom: 40 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <h2 style={{ fontSize: 18, fontWeight: 500 }}>Sites Visited</h2>
-        <input 
-          type="text" 
-          placeholder="Search domains..." 
-          value={search} 
-          onChange={e => setSearch(e.target.value)}
-          style={{ width: 250 }}
-        />
+    <div>
+      <div style={{ display:"flex", gap:10, marginBottom:16, alignItems:"center" }}>
+        <input placeholder="Filter by domain…" value={search}
+               onChange={e => setSearch(e.target.value)} style={{ width:280 }} />
+        <span style={{ ...mono, fontSize:11, color:"#475569" }}>{filtered.length} sites</span>
       </div>
-      
-      <div style={{ flex: 1, overflow: 'auto', background: 'var(--surface)', borderRadius: 10, border: '1px solid var(--border)' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: 12 }}>
-          <thead style={{ position: 'sticky', top: 0, background: 'var(--surface)', zIndex: 10 }}>
-            <tr style={{ color: 'var(--muted)', fontFamily: 'var(--sans)', borderBottom: '1px solid var(--border)' }}>
-              <th style={{ padding: '12px' }}>#</th>
-              <th style={{ padding: '12px', cursor: 'pointer' }} onClick={() => handleSort('domain')}>Domain <SortIcon col="domain" /></th>
-              <th style={{ padding: '12px' }}>App</th>
-              <th style={{ padding: '12px', cursor: 'pointer' }} onClick={() => handleSort('bytes')}>Total Bytes <SortIcon col="bytes" /></th>
-              <th style={{ padding: '12px', cursor: 'pointer' }} onClick={() => handleSort('packets')}>Packets <SortIcon col="packets" /></th>
-              <th style={{ padding: '12px' }}>Connections</th>
-              <th style={{ padding: '12px' }}>Last Seen</th>
-              <th style={{ padding: '12px' }}>Status</th>
+      <Panel>
+        <table style={{ width:"100%", borderCollapse:"collapse" }}>
+          <thead>
+            <tr style={{ background:"#080c14", borderBottom:"1px solid #1a2540" }}>
+              <th style={{ padding:"8px 10px", fontSize:10, color:"#475569", fontWeight:600, textTransform:"uppercase", letterSpacing:"0.07em", fontFamily:"JetBrains Mono", textAlign:"left" }}>#</th>
+              <SortHeader k="domain" label="Domain" />
+              <th style={{ padding:"8px 10px", fontSize:10, color:"#475569", fontWeight:600, textTransform:"uppercase", letterSpacing:"0.07em", fontFamily:"JetBrains Mono", textAlign:"left" }}>App</th>
+              <SortHeader k="total_bytes" label="Bytes" />
+              <SortHeader k="total_packets" label="Packets" />
+              <SortHeader k="flow_count" label="Flows" />
+              <th style={{ padding:"8px 10px", fontSize:10, color:"#475569", fontWeight:600, textTransform:"uppercase", letterSpacing:"0.07em", fontFamily:"JetBrains Mono", textAlign:"left" }}>Last Seen</th>
+              <th style={{ padding:"8px 10px", fontSize:10, color:"#475569", fontWeight:600, textTransform:"uppercase", letterSpacing:"0.07em", fontFamily:"JetBrains Mono", textAlign:"left" }}>Status</th>
             </tr>
           </thead>
           <tbody>
-            {sorted.map((site, i) => (
-              <tr key={(site?.domain||'')+i} style={{ borderBottom: '1px solid var(--border)' }}>
-                <td style={{ padding: '12px', color: 'var(--muted2)', fontFamily: 'var(--mono)' }}>{i + 1}</td>
-                <td style={{ padding: '12px', color: 'var(--text)', fontFamily: 'var(--mono)', maxWidth: 200, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={site?.domain}>{site?.domain}</td>
-                <td style={{ padding: '12px' }}><AppBadge app={site?.app} /></td>
-                <td style={{ padding: '12px', fontFamily: 'var(--mono)' }}>{humanBytes(site?.total_bytes || 0)}</td>
-                <td style={{ padding: '12px', fontFamily: 'var(--mono)' }}>{(site?.total_packets||0).toLocaleString()}</td>
-                <td style={{ padding: '12px', fontFamily: 'var(--mono)' }}>{site?.flow_count||0}</td>
-                <td style={{ padding: '12px', color: 'var(--muted)' }}>{timeAgo(site?.last_seen_ms || Date.now())}</td>
-                <td style={{ padding: '12px' }}>
-                  {site?.blocked ? 
-                    <span style={{ color: 'var(--red)', background: 'var(--red)22', padding: '2px 8px', borderRadius: 4, fontSize: 10, fontWeight: 600 }}>BLOCKED</span> :
-                    <span style={{ color: 'var(--emerald)', background: 'rgba(16, 185, 129, 0.15)', padding: '2px 8px', borderRadius: 4, fontSize: 10, fontWeight: 600 }}>OK</span>
-                  }
+            {filtered.map((s,i) => (
+              <tr key={i} style={{ borderBottom:"1px solid #0d1421", background: i%2===0?"transparent":"#0a0f1c" }}>
+                <td style={{ padding:"8px 10px", color:"#334155", ...mono, fontSize:11 }}>{i+1}</td>
+                <td style={{
+                  padding:"8px 10px", ...mono, fontSize:11,
+                  color: s.blocked ? "#ef4444" : "#c7d2fe",
+                  maxWidth:280, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap",
+                }}>{s.domain}</td>
+                <td style={{ padding:"8px 10px" }}><Badge app={s.app} /></td>
+                <td style={{ padding:"8px 10px", color:"#94a3b8", ...mono, fontSize:11 }}>{humanBytes(s.total_bytes)}</td>
+                <td style={{ padding:"8px 10px", color:"#64748b", ...mono, fontSize:11 }}>{(s.total_packets||0).toLocaleString()}</td>
+                <td style={{ padding:"8px 10px", color:"#64748b", ...mono, fontSize:11 }}>{s.flow_count}</td>
+                <td style={{ padding:"8px 10px", color:"#475569", ...mono, fontSize:10 }}>{timeAgo(s.last_seen)}</td>
+                <td style={{ padding:"8px 10px" }}>
+                  {s.blocked
+                    ? <span style={{ color:"#ef4444", ...mono, fontSize:10, fontWeight:700 }}>BLOCKED</span>
+                    : <span style={{ color:"#10b981", ...mono, fontSize:10 }}>OK</span>}
                 </td>
               </tr>
             ))}
+            {filtered.length === 0 && (
+              <tr><td colSpan={8} style={{ padding:40, textAlign:"center", color:"#334155", ...mono, fontSize:12 }}>
+                No sites found
+              </td></tr>
+            )}
           </tbody>
         </table>
-        {sorted.length === 0 && <div style={{ padding: 40, textAlign: 'center', color: 'var(--muted)' }}>No domains found</div>}
-      </div>
+      </Panel>
     </div>
-  );
+  )
 }
 
 function FlowsView({ flows }) {
-  const [search, setSearch] = useState('');
-  const [filterApp, setFilterApp] = useState('');
-  const [blockedOnly, setBlockedOnly] = useState(false);
-  const [prevFlows, setPrevFlows] = useState(new Set());
-  
-  const safeFlows = flows || [];
+  const [domain, setDomain] = useState("")
+  const [app, setApp] = useState("")
+  const [blockedOnly, setBlockedOnly] = useState(false)
 
-  useEffect(() => {
-    const keys = new Set(safeFlows.map(f => `${f.src_ip}:${f.src_port}-${f.dst_ip}:${f.dst_port}`));
-    setPrevFlows(keys);
-  }, [flows]);
+  const apps = [...new Set((flows||[]).map(f => f.app).filter(Boolean))].sort()
 
-  const uniqueApps = Array.from(new Set(safeFlows.map(f => f.app_name))).sort();
-
-  const filtered = safeFlows.filter(f => {
-    if (search && !((f.domain || '').toLowerCase().includes(search.toLowerCase()) || (f.dst_ip||'').includes(search))) return false;
-    if (filterApp && f.app_name !== filterApp) return false;
-    if (blockedOnly && !f.blocked) return false;
-    return true;
-  });
+  const filtered = (flows||[]).filter(f =>
+    (!domain || f.domain?.toLowerCase().includes(domain.toLowerCase())) &&
+    (!app || f.app === app) &&
+    (!blockedOnly || f.blocked)
+  )
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 20, height: '100%', paddingBottom: 40 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <h2 style={{ fontSize: 18, fontWeight: 500 }}>Live Flows</h2>
-        <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-          <select value={filterApp} onChange={e => setFilterApp(e.target.value)}>
-            <option value="">All Applications</option>
-            {uniqueApps.map(app => <option key={app} value={app}>{app}</option>)}
-          </select>
-          <input 
-            type="text" placeholder="Filter domain/IP..." 
-            value={search} onChange={e => setSearch(e.target.value)}
-          />
-          <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontSize: 12 }}>
-            <input type="checkbox" checked={blockedOnly} onChange={e => setBlockedOnly(e.target.checked)} />
-            Blocked only
-          </label>
-        </div>
+    <div>
+      <div style={{ display:"flex", gap:10, marginBottom:16, alignItems:"center", flexWrap:"wrap" }}>
+        <input placeholder="Filter domain…" value={domain}
+               onChange={e => setDomain(e.target.value)} style={{ width:200 }} />
+        <select value={app} onChange={e => setApp(e.target.value)}>
+          <option value="">All apps</option>
+          {apps.map(a => <option key={a} value={a}>{a}</option>)}
+        </select>
+        <label style={{ display:"flex", alignItems:"center", gap:6, cursor:"pointer", color:"#64748b", fontSize:12 }}>
+          <input type="checkbox" checked={blockedOnly} onChange={e => setBlockedOnly(e.target.checked)} />
+          Blocked only
+        </label>
+        <span style={{ ...mono, fontSize:11, color:"#475569" }}>{filtered.length} flows</span>
       </div>
-      
-      <div style={{ flex: 1, overflow: 'auto', background: 'var(--surface)', borderRadius: 10, border: '1px solid var(--border)' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: 12 }}>
-          <thead style={{ position: 'sticky', top: 0, background: 'var(--surface)', zIndex: 10 }}>
-            <tr style={{ color: 'var(--muted)', fontFamily: 'var(--sans)', borderBottom: '1px solid var(--border)' }}>
-              <th style={{ padding: '12px' }}>Connection</th>
-              <th style={{ padding: '12px' }}>Domain</th>
-              <th style={{ padding: '12px' }}>App / Proto</th>
-              <th style={{ padding: '12px' }}>Bytes</th>
-              <th style={{ padding: '12px' }}>Packets</th>
-              <th style={{ padding: '12px' }}>Age</th>
-              <th style={{ padding: '12px' }}>Flags</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filtered.slice(0, 200).map((f) => {
-              const key = `${f.src_ip}:${f.src_port}-${f.dst_ip}:${f.dst_port}`;
-              const isNew = !prevFlows.has(key);
-              return (
-                <tr key={key} style={{ borderBottom: '1px solid var(--border)', animation: isNew ? 'row-flash 1s' : 'none' }}>
-                  <td style={{ padding: '12px', color: 'var(--muted2)', fontFamily: 'var(--mono)', fontSize: 11 }}>
-                    <span style={{ color: 'var(--muted)' }}>{f.src_ip}:{f.src_port}</span> <span style={{ color: 'var(--border2)' }}>→</span> <span style={{ color: 'var(--text)' }}>{f.dst_ip}:{f.dst_port}</span>
+      <Panel>
+        <div style={{ overflowX:"auto", maxHeight:"calc(100vh - 240px)", overflowY:"auto" }}>
+          <table style={{ width:"100%", borderCollapse:"collapse", minWidth:900 }}>
+            <thead style={{ position:"sticky", top:0, background:"#0d1421", zIndex:1 }}>
+              <tr style={{ borderBottom:"1px solid #1a2540" }}>
+                {["Source","Destination","Domain","App","Proto","Bytes","Packets","Flags"].map(h => (
+                  <th key={h} style={{
+                    textAlign:"left", padding:"8px 10px",
+                    fontSize:10, color:"#475569", fontWeight:600,
+                    textTransform:"uppercase", letterSpacing:"0.07em",
+                    fontFamily:"JetBrains Mono", whiteSpace:"nowrap",
+                  }}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.map((f,i) => (
+                <tr key={i} style={{
+                  borderBottom:"1px solid #0a0f1c",
+                  background: f.blocked ? "#2b0d0d18" : (i%2===0?"transparent":"#0a0f1c"),
+                }}>
+                  <td style={{ padding:"7px 10px", ...mono, fontSize:11, color:"#94a3b8", whiteSpace:"nowrap" }}>
+                    {f.src_ip}:{f.src_port}
                   </td>
-                  <td style={{ padding: '12px', color: 'var(--text)', fontFamily: 'var(--mono)' }}>{f.domain || '-'}</td>
-                  <td style={{ padding: '12px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <AppBadge app={f.app_name} />
-                      <span style={{ fontSize: 10, color: 'var(--muted2)', fontFamily: 'var(--mono)' }}>{f.protocol === 6 ? 'TCP' : 'UDP'}</span>
-                    </div>
+                  <td style={{ padding:"7px 10px", ...mono, fontSize:11, color:"#94a3b8", whiteSpace:"nowrap" }}>
+                    {f.dst_ip}:{f.dst_port}
                   </td>
-                  <td style={{ padding: '12px', fontFamily: 'var(--mono)' }}>{humanBytes(f.bytes || 0)}</td>
-                  <td style={{ padding: '12px', fontFamily: 'var(--mono)' }}>{f.packets || 0}</td>
-                  <td style={{ padding: '12px', color: 'var(--emerald)' }}>{timeAgo(f.first_seen_ms || Date.now())}</td>
-                  <td style={{ padding: '12px' }}>
-                    <div style={{ display: 'flex', gap: 4 }}>
-                      {f.is_quic && <span style={{ padding: '2px 6px', background: 'var(--violet)33', color: 'var(--violet)', borderRadius: 3, fontSize: 10, fontWeight: 700, border: '1px solid var(--violet)' }}>QUIC</span>}
-                      {f.blocked && <span style={{ padding: '2px 6px', background: 'var(--red)33', color: 'var(--red)', borderRadius: 3, fontSize: 10, fontWeight: 700, border: '1px solid var(--red)' }}>BLOCK</span>}
-                    </div>
+                  <td style={{
+                    padding:"7px 10px", ...mono, fontSize:11, color:"#c7d2fe",
+                    maxWidth:200, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap",
+                  }}>{f.domain || <span style={{ color:"#334155" }}>—</span>}</td>
+                  <td style={{ padding:"7px 10px" }}><Badge app={f.app} /></td>
+                  <td style={{ padding:"7px 10px", ...mono, fontSize:11, color:"#475569" }}>
+                    {f.protocol===6?"TCP":f.protocol===17?"UDP":f.protocol}
+                  </td>
+                  <td style={{ padding:"7px 10px", ...mono, fontSize:11, color:"#94a3b8", whiteSpace:"nowrap" }}>
+                    {humanBytes(f.bytes)}
+                  </td>
+                  <td style={{ padding:"7px 10px", ...mono, fontSize:11, color:"#64748b" }}>
+                    {(f.packets||0).toLocaleString()}
+                  </td>
+                  <td style={{ padding:"7px 10px" }}>
+                    {f.is_quic && <span style={{ ...mono, fontSize:10, color:"#7c3aed", fontWeight:700, marginRight:4 }}>QUIC</span>}
+                    {f.blocked && <span style={{ ...mono, fontSize:10, color:"#ef4444", fontWeight:700 }}>BLOCKED</span>}
                   </td>
                 </tr>
-              );
-            })}
-          </tbody>
-        </table>
-        {filtered.length === 0 && <div style={{ padding: 40, textAlign: 'center', color: 'var(--muted)' }}>No live flows</div>}
-      </div>
+              ))}
+              {filtered.length === 0 && (
+                <tr><td colSpan={8} style={{ padding:40, textAlign:"center", color:"#334155", ...mono, fontSize:12 }}>
+                  No flows matching filters
+                </td></tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </Panel>
     </div>
-  );
+  )
 }
 
 function BlockedView({ flows }) {
-  const safeFlows = flows || [];
-  const blocked = safeFlows.filter(f => f.blocked);
-  
-  if (blocked.length === 0) {
-    return (
-      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', color: 'var(--muted)' }}>
-        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round" style={{ marginBottom: 16 }}>
-          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
-        </svg>
-        <p style={{ fontSize: 14 }}>No blocked flows active</p>
-        <p style={{ fontSize: 12, marginTop: 8 }}>Start blocking with --block-app or --block-domain flags</p>
-      </div>
-    );
-  }
-
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 20, height: '100%', paddingBottom: 40 }}>
-      <h2 style={{ fontSize: 18, fontWeight: 500, color: 'var(--red)' }}>Blocked Flows</h2>
-      
-      <div style={{ flex: 1, overflow: 'auto', background: 'var(--surface)', borderRadius: 10, border: '1px solid var(--red)' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: 12 }}>
-          <thead style={{ position: 'sticky', top: 0, background: 'var(--surface)', zIndex: 10 }}>
-            <tr style={{ color: 'var(--red)', fontFamily: 'var(--sans)', borderBottom: '1px solid var(--border)' }}>
-              <th style={{ padding: '12px' }}>Source → Destination</th>
-              <th style={{ padding: '12px' }}>Domain</th>
-              <th style={{ padding: '12px' }}>App</th>
-              <th style={{ padding: '12px' }}>Blocked Bytes</th>
-              <th style={{ padding: '12px' }}>Blocked Packets</th>
-              <th style={{ padding: '12px' }}>Time</th>
-            </tr>
-          </thead>
-          <tbody>
-            {blocked.map((f, i) => {
-              const key = `${f.src_ip}:${f.src_port}-${f.dst_ip}:${f.dst_port}-${i}`;
-              return (
-                <tr key={key} style={{ borderBottom: '1px solid var(--border)', background: 'rgba(239, 68, 68, 0.05)' }}>
-                  <td style={{ padding: '12px', color: 'var(--muted2)', fontFamily: 'var(--mono)', fontSize: 11 }}>
-                    <span style={{ color: 'var(--muted)' }}>{f.src_ip}:{f.src_port}</span> → <span style={{ color: 'var(--text)' }}>{f.dst_ip}:{f.dst_port}</span>
-                  </td>
-                  <td style={{ padding: '12px', color: 'var(--text)', fontFamily: 'var(--mono)' }}>{f.domain || '-'}</td>
-                  <td style={{ padding: '12px' }}><AppBadge app={f.app_name} /></td>
-                  <td style={{ padding: '12px', fontFamily: 'var(--mono)' }}>{humanBytes(f.bytes || 0)}</td>
-                  <td style={{ padding: '12px', fontFamily: 'var(--mono)' }}>{f.packets || 0}</td>
-                  <td style={{ padding: '12px', color: 'var(--muted)' }}>{timeAgo(f.last_seen_ms || Date.now())}</td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
+  const blocked = (flows||[]).filter(f => f.blocked)
+  if (blocked.length === 0) return (
+    <div style={{ display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", height:400, gap:20 }}>
+      <svg width="64" height="64" viewBox="0 0 64 64" fill="none">
+        <path d="M32 4L8 16v20c0 13.3 10.3 25.7 24 28 13.7-2.3 24-14.7 24-28V16L32 4z"
+              stroke="#1a2540" strokeWidth="2" fill="#0d1421"/>
+        <path d="M32 4L8 16v20c0 13.3 10.3 25.7 24 28 13.7-2.3 24-14.7 24-28V16L32 4z"
+              stroke="#00d4ff" strokeWidth="1.5" fill="none"/>
+        <path d="M22 32l8 8 12-12" stroke="#10b981" strokeWidth="2.5"
+              strokeLinecap="round" strokeLinejoin="round"/>
+      </svg>
+      <div style={{ textAlign:"center" }}>
+        <div style={{ ...mono, fontSize:14, color:"#64748b", marginBottom:8 }}>No blocked flows</div>
+        <div style={{ ...mono, fontSize:11, color:"#334155" }}>
+          Add rules with --block-app YouTube or --block-domain tiktok.com
+        </div>
       </div>
     </div>
-  );
+  )
+
+  return (
+    <Panel>
+      <table style={{ width:"100%", borderCollapse:"collapse" }}>
+        <thead>
+          <tr style={{ borderBottom:"1px solid #1a2540" }}>
+            {["Source IP","Destination","Domain","App","Bytes Blocked","Packets"].map(h => (
+              <th key={h} style={{
+                textAlign:"left", padding:"8px 12px",
+                fontSize:10, color:"#475569", fontWeight:600,
+                textTransform:"uppercase", letterSpacing:"0.07em",
+                fontFamily:"JetBrains Mono",
+              }}>{h}</th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {blocked.map((f,i) => (
+            <tr key={i} style={{ borderBottom:"1px solid #0d1421", background:"#2b0d0d18" }}>
+              <td style={{ padding:"9px 12px", ...mono, fontSize:11, color:"#ef4444" }}>{f.src_ip}</td>
+              <td style={{ padding:"9px 12px", ...mono, fontSize:11, color:"#94a3b8" }}>{f.dst_ip}:{f.dst_port}</td>
+              <td style={{ padding:"9px 12px", ...mono, fontSize:11, color:"#fca5a5" }}>{f.domain||"—"}</td>
+              <td style={{ padding:"9px 12px" }}><Badge app={f.app} /></td>
+              <td style={{ padding:"9px 12px", ...mono, fontSize:11, color:"#ef4444" }}>{humanBytes(f.bytes)}</td>
+              <td style={{ padding:"9px 12px", ...mono, fontSize:11, color:"#ef4444" }}>{(f.packets||0).toLocaleString()}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </Panel>
+  )
 }
 
+const TABS = ["Overview","Sites Visited","Live Flows","Blocked"]
+
 export default function App() {
-  const [tab, setTab] = useState('Overview')
+  const [tab, setTab] = useState("Overview")
   const [stats, setStats] = useState(null)
   const [sites, setSites] = useState([])
   const [flows, setFlows] = useState([])
@@ -473,29 +438,118 @@ export default function App() {
     setLoading(true)
     try {
       const [s, si, st, fl] = await Promise.allSettled([
-        fetchStats(), fetchSites(200), fetchStatus(), fetchFlows({ limit: 300 })
+        fetchStats(), fetchSites(200), fetchStatus(), fetchFlows({ limit:300 })
       ])
-      if (s.status  === 'fulfilled') setStats(s.value)
-      if (si.status === 'fulfilled') setSites(si.value)
-      if (st.status === 'fulfilled') setStatus(st.value)
-      if (fl.status === 'fulfilled') setFlows(fl.value)
+      if (s.status  === "fulfilled") setStats(s.value)
+      if (si.status === "fulfilled") setSites(si.value)
+      if (st.status === "fulfilled") setStatus(st.value)
+      if (fl.status === "fulfilled") setFlows(fl.value)
     } finally { setLoading(false) }
   }, [])
 
   useEffect(() => { refresh() }, [])
+
   useEffect(() => {
     const id = setInterval(refresh, 4000)
     return () => clearInterval(id)
   }, [])
-  
+
+  const ok = status?.flows_file_found
+  const blocked = (flows||[]).filter(f => f.blocked)
+
   return (
-    <div style={{ display: 'flex', height: '100vh', overflow: 'hidden' }}>
-      <Sidebar tab={tab} setTab={setTab} status={status} onRefresh={refresh} loading={loading} />
-      <main style={{ flex: 1, overflow: 'auto', padding: '24px' }}>
-        {tab === 'Overview'      && <Overview stats={stats} sites={sites} />}
-        {tab === 'Sites Visited' && <SitesView sites={sites} />}
-        {tab === 'Live Flows'    && <FlowsView flows={flows} />}
-        {tab === 'Blocked'       && <BlockedView flows={flows} />}
+    <div style={{ display:"flex", height:"100vh", overflow:"hidden", background:"#080c14" }}>
+      {/* Sidebar */}
+      <div style={{
+        width:220, flexShrink:0,
+        background:"#0d1421", borderRight:"1px solid #1a2540",
+        display:"flex", flexDirection:"column", height:"100vh",
+      }}>
+        {/* Logo */}
+        <div style={{ padding:"20px 16px 16px", borderBottom:"1px solid #1a2540" }}>
+          <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+            <div style={{
+              width:32, height:32, borderRadius:8,
+              background:"#00d4ff11", border:"1px solid #00d4ff44",
+              display:"flex", alignItems:"center", justifyContent:"center",
+              fontSize:16, fontWeight:700, color:"#00d4ff", fontFamily:"JetBrains Mono",
+            }}>F</div>
+            <div>
+              <div style={{ fontWeight:600, fontSize:13, color:"#e2e8f0", fontFamily:"Inter,sans-serif" }}>FlowSentinel</div>
+              <div style={{ fontSize:10, color:"#475569", letterSpacing:"0.08em", textTransform:"uppercase", fontFamily:"JetBrains Mono" }}>DPI Dashboard</div>
+            </div>
+          </div>
+        </div>
+
+        {/* Engine status */}
+        <div style={{ padding:"12px 16px", borderBottom:"1px solid #1a2540" }}>
+          <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:ok?6:0 }}>
+            <div style={{
+              width:8, height:8, borderRadius:"50%",
+              background: ok ? "#10b981" : "#ef4444",
+              animation: ok ? "pulse 2s ease-in-out infinite" : "none",
+            }} />
+            <span style={{
+              fontSize:10, fontWeight:600, letterSpacing:"0.08em",
+              color: ok ? "#10b981" : "#ef4444",
+              fontFamily:"JetBrains Mono",
+            }}>{ok ? "ENGINE ACTIVE" : "ENGINE OFFLINE"}</span>
+          </div>
+          {ok && <>
+            <div style={{ ...mono, fontSize:11, color:"#64748b" }}>{status.total_flows} flows tracked</div>
+            <div style={{ ...mono, fontSize:10, color:"#334155", wordBreak:"break-all", marginTop:2 }}>{status.flows_file}</div>
+          </>}
+        </div>
+
+        {/* Nav */}
+        <nav style={{ flex:1, padding:"8px 0" }}>
+          {TABS.map(t => (
+            <button key={t} onClick={() => setTab(t)} style={{
+              display:"block", width:"100%", textAlign:"left",
+              background:"none", border:"none",
+              borderLeft: tab===t ? "2px solid #00d4ff" : "2px solid transparent",
+              padding:"10px 16px",
+              color: tab===t ? "#00d4ff" : "#64748b",
+              fontFamily:"Inter,sans-serif", fontSize:13,
+              fontWeight: tab===t ? 500 : 400,
+              cursor:"pointer", transition:"color 0.1s",
+              borderRadius:0,
+            }}>
+              {t}{t==="Blocked" && blocked.length > 0 ? ` (${blocked.length})` : ""}
+            </button>
+          ))}
+        </nav>
+
+        {/* Refresh */}
+        <div style={{ padding:"12px 16px", borderTop:"1px solid #1a2540" }}>
+          <button onClick={refresh} style={{
+            width:"100%", background:"#111827", border:"1px solid #1a2540",
+            color:"#64748b", padding:"7px 0", borderRadius:6,
+            fontFamily:"JetBrains Mono", fontSize:11, cursor:"pointer",
+            transition:"all 0.15s",
+          }}>{loading ? "…" : "↻  Refresh"}</button>
+        </div>
+      </div>
+
+      {/* Main */}
+      <main style={{ flex:1, overflow:"auto", padding:24 }}>
+        <style>{`
+          @keyframes pulse {
+            0%,100%{opacity:1;transform:scale(1)}
+            50%{opacity:0.5;transform:scale(0.85)}
+          }
+          input,select{
+            background:#111827;border:1px solid #243050;color:#e2e8f0;
+            padding:7px 12px;border-radius:6px;font-size:12px;
+            font-family:'JetBrains Mono',monospace;outline:none;
+          }
+          input:focus,select:focus{border-color:#00d4ff}
+          button:hover{border-color:#00d4ff!important;color:#00d4ff!important}
+        `}</style>
+        {tab === "Overview"      && <Overview stats={stats} sites={sites} />}
+        {tab === "Sites Visited" && <SitesView sites={sites} />}
+        {tab === "Live Flows"    && <FlowsView flows={flows} />}
+        {tab === "Blocked"       && <BlockedView flows={flows} />}
       </main>
     </div>
   )

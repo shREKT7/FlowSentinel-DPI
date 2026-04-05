@@ -100,7 +100,15 @@ def get_sites(limit: int = 100):
         "total_packets": 0, "flow_count": 0, "blocked": False, "last_seen": 0,
     })
     for flow in flows:
-        domain = flow.get("domain", "") or flow.get("dst_ip", "unknown")
+        domain = flow.get("domain", "")
+        if not domain:
+            # Don't use raw IPs — skip flows with no domain for the sites view
+            # but still count their bytes under the app category
+            app = flow.get("app", "UNKNOWN")
+            if app and app not in ("Unknown", "UNKNOWN", "HTTPS", "HTTP", ""):
+                domain = f"[{app} traffic]"
+            else:
+                continue  # skip unidentified flows entirely from sites view
         key = domain
         site_stats[key]["domain"] = domain
         site_stats[key]["app"] = flow.get("app", "UNKNOWN")
@@ -145,17 +153,11 @@ def get_stats():
     ]
     app_distribution.sort(key=lambda x: x["bytes"], reverse=True)
 
-    # Count unique identifiable entities (domains + classified-but-no-domain)
-    unique_identifiable = set()
-    for f in flows:
-        d = f.get("domain", "")
-        a = f.get("app", "")
-        if d:
-            unique_identifiable.add(d)
-        elif a and a not in ("Unknown", "HTTPS", "HTTP", "DNS"):
-            unique_identifiable.add(f"[{a}]")  # e.g. "[YouTube]"
-
-    unique_domains = len(unique_identifiable)
+    unique_domains = len({
+        f.get("domain", "")
+        for f in flows
+        if f.get("domain", "") and not f.get("domain", "").startswith("[")
+    })
 
     return {
         "total_flows": len(flows),
