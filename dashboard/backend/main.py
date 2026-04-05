@@ -145,7 +145,17 @@ def get_stats():
     ]
     app_distribution.sort(key=lambda x: x["bytes"], reverse=True)
 
-    unique_domains = len({f.get("domain", "") for f in flows if f.get("domain")})
+    # Count unique identifiable entities (domains + classified-but-no-domain)
+    unique_identifiable = set()
+    for f in flows:
+        d = f.get("domain", "")
+        a = f.get("app", "")
+        if d:
+            unique_identifiable.add(d)
+        elif a and a not in ("Unknown", "HTTPS", "HTTP", "DNS"):
+            unique_identifiable.add(f"[{a}]")  # e.g. "[YouTube]"
+
+    unique_domains = len(unique_identifiable)
 
     return {
         "total_flows": len(flows),

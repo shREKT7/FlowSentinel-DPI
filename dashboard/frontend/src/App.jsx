@@ -4,15 +4,14 @@ import { fetchStats, fetchSites, fetchFlows, fetchStatus, humanBytes, timeAgo } 
 
 const APP_COLORS = {
   YOUTUBE:   '#FF0000', GOOGLE:    '#4285F4', FACEBOOK:  '#1877F2',
-  INSTAGRAM: '#E1306C', TWITTER:   '#1DA1F2', NETFLIX:   '#E50914',
+  INSTAGRAM: '#E1306C', 'TWITTER/X':'#1DA1F2', NETFLIX:   '#E50914',
   AMAZON:    '#FF9900', MICROSOFT: '#00BCF2', APPLE:     '#86868b',
-  TELEGRAM:  '#2CA5E0', TIKTOK:    '#010101', SPOTIFY:   '#1DB954',
+  TELEGRAM:  '#2CA5E0', TIKTOK:    '#69C9D0', SPOTIFY:   '#1DB954',
   ZOOM:      '#2D8CFF', DISCORD:   '#5865F2', GITHUB:    '#6e40c9',
   CLOUDFLARE:'#F48120', OPENAI:    '#10a37f', HOTSTAR:   '#ff2d55',
   REDDIT:    '#FF4500', TWITCH:    '#9146FF', LINKEDIN:  '#0A66C2',
-  SNAPCHAT:  '#FFFC00', PINTEREST: '#E60023', DROPBOX:   '#0061FF',
-  SLACK:     '#4A154B', HTTPS:     '#334155', HTTP:      '#475569',
-  DNS:       '#059669', QUIC:      '#7c3aed', UNKNOWN:   '#1e293b',
+  DNS:       '#10b981', HTTPS:     '#334155', HTTP:      '#475569',
+  QUIC:      '#7c3aed', UNKNOWN:   '#1e293b',
 }
 const getColor = (app) => APP_COLORS[app?.toUpperCase?.()] || '#334155'
 
@@ -22,7 +21,7 @@ function Sidebar({ tab, setTab, status, onRefresh, loading }) {
 
   return (
     <div style={{
-      width: 240, flexShrink: 0,
+      width: 220, flexShrink: 0,
       background: 'var(--surface)',
       borderRight: '1px solid var(--border)',
       display: 'flex', flexDirection: 'column',
@@ -47,7 +46,7 @@ function Sidebar({ tab, setTab, status, onRefresh, loading }) {
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
           <div className="pulse-dot" style={{ background: ok ? 'var(--emerald)' : 'var(--red)' }} />
           <span style={{ fontSize: 11, color: ok ? 'var(--emerald)' : 'var(--red)', fontWeight: 500 }}>
-            {ok ? 'LIVE' : 'OFFLINE'}
+            {ok ? 'ENGINE ACTIVE' : 'ENGINE OFFLINE'}
           </span>
         </div>
         {ok && (
@@ -56,7 +55,7 @@ function Sidebar({ tab, setTab, status, onRefresh, loading }) {
               {status?.total_flows || 0} flows tracked
             </div>
             <div style={{ fontFamily: 'var(--mono)', fontSize: 10, color: 'var(--muted)', wordBreak: 'break-all' }}>
-              flows.json
+              {status?.flows_file || 'flows.json'}
             </div>
           </>
         )}
@@ -148,8 +147,8 @@ function ChartTooltip({ active, payload, label }) {
     }}>
       {payload.map((p, i) => (
         <div key={i} style={{ color: p.color || 'var(--text)', fontFamily: 'var(--mono)' }}>
-          {p.name || label}: {typeof p.value === 'number' && p.value > 1000
-            ? humanBytes(p.value) : p.value}
+          {p.name || label}: {typeof p.value === 'number' && p.value > 1000 ? humanBytes(p.value) : p.value} 
+          {p.payload?.pct_bytes ? ` (${p.payload.pct_bytes}%)` : ''}
         </div>
       ))}
     </div>
@@ -157,44 +156,53 @@ function ChartTooltip({ active, payload, label }) {
 }
 
 function Overview({ stats, sites }) {
-  if (!stats) return null;
-  const appData = Object.entries(stats.app_distribution || {})
-    .map(([name, value]) => ({ name, value }))
-    .sort((a,b) => b.value - a.value);
+  const pieData = stats?.app_distribution?.filter(a => a.bytes > 0) || []
+  const topSites = sites?.slice?.(0, 8) || []
+  const barData = stats?.app_distribution?.slice?.(0, 8) || []
     
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24, paddingBottom: 40 }}>
+      {/* Row 1 - Stat cards */}
       <div style={{ display: 'flex', gap: 16 }}>
-        <StatCard label="TOTAL FLOWS" value={stats.total_flows} />
-        <StatCard label="DATA TRANSFERRED" value={humanBytes(stats.total_bytes)} />
-        <StatCard label="UNIQUE DOMAINS" value={stats.unique_domains || 0} />
-        <StatCard label="BLOCKED FLOWS" value={stats.blocked_flows || 0} accent="var(--red)" />
+        <StatCard label="TOTAL FLOWS" value={stats?.total_flows || 0} accent="var(--cyan)" />
+        <StatCard label="DATA TRANSFERRED" value={stats?.total_bytes > 0 ? humanBytes(stats.total_bytes) : '0 B'} accent="var(--violet)" />
+        <StatCard label="UNIQUE DOMAINS" value={stats?.unique_domains || 0} accent="var(--emerald)" />
+        <StatCard label="BLOCKED FLOWS" value={stats?.blocked_flows || 0} accent="var(--red)" />
       </div>
+      
+      {/* Row 2 - Panels */}
       <div style={{ display: 'flex', gap: 16, height: 320 }}>
         <Panel title="Traffic by Application" style={{ flex: '0 0 60%' }}>
-          <ResponsiveContainer width="100%" height="100%">
-            <PieChart>
-              <Pie data={appData} cx="50%" cy="50%" innerRadius={60} outerRadius={100} paddingAngle={2} dataKey="value" animationDuration={800}>
-                {appData.map((entry, index) => <Cell key={`cell-${index}`} fill={getColor(entry.name)} stroke="none" />)}
-              </Pie>
-              <Tooltip content={<ChartTooltip />} />
-              <Legend verticalAlign="bottom" height={36} iconType="circle" wrapperStyle={{ fontSize: 11, fontFamily: 'var(--sans)' }} />
-            </PieChart>
-          </ResponsiveContainer>
+          {pieData.length > 0 ? (
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie data={pieData} cx="50%" cy="50%" innerRadius={65} outerRadius={110} paddingAngle={2} dataKey="bytes" nameKey="app">
+                  {pieData.map((entry, index) => <Cell key={`cell-${index}`} fill={getColor(entry.app)} stroke="none" />)}
+                </Pie>
+                <Tooltip content={<ChartTooltip />} />
+                <Legend verticalAlign="bottom" height={36} iconType="circle" wrapperStyle={{ fontSize: 11, fontFamily: 'var(--sans)' }} />
+              </PieChart>
+            </ResponsiveContainer>
+          ) : <div style={{textAlign: 'center', color: 'var(--muted)', marginTop: 80}}>No traffic data</div>}
         </Panel>
-        <Panel title="Top Apps" style={{ flex: '0 0 40%' }}>
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={appData.slice(0, 6)} layout="vertical" margin={{ top: 0, right: 30, left: 10, bottom: 0 }}>
-              <XAxis type="number" hide />
-              <YAxis dataKey="name" type="category" width={80} stroke="var(--muted)" fontSize={11} tickLine={false} axisLine={false} />
-              <Tooltip content={<ChartTooltip />} cursor={{ fill: 'rgba(255,255,255,0.05)' }} />
-              <Bar dataKey="value" radius={[0, 4, 4, 0]} animationDuration={800}>
-                {appData.slice(0, 6).map((entry, index) => <Cell key={`cell-${index}`} fill={getColor(entry.name)} />)}
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
+        
+        <Panel title="Top Apps by Bytes" style={{ flex: '0 0 40%' }}>
+          {barData.length > 0 ? (
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={barData} layout="vertical" margin={{ top: 0, right: 30, left: 10, bottom: 0 }}>
+                <XAxis type="number" hide tickFormatter={humanBytes} />
+                <YAxis dataKey="app" type="category" width={90} stroke="var(--muted)" fontSize={11} tickLine={false} axisLine={false} />
+                <Tooltip content={<ChartTooltip />} cursor={{ fill: 'rgba(255,255,255,0.05)' }} />
+                <Bar dataKey="bytes" radius={[0, 4, 4, 0]}>
+                  {barData.map((entry, index) => <Cell key={`cell-${index}`} fill={getColor(entry.app)} />)}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          ) : <div style={{textAlign: 'center', color: 'var(--muted)', marginTop: 80}}>No traffic data</div>}
         </Panel>
       </div>
+      
+      {/* Row 3 - Table */}
       <Panel title="Top Sites">
         <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: 12 }}>
           <thead>
@@ -208,19 +216,19 @@ function Overview({ stats, sites }) {
             </tr>
           </thead>
           <tbody>
-            {(sites || []).slice(0, 8).map((site, i) => (
-              <tr key={site.domain} style={{ borderBottom: '1px solid var(--border)', background: i % 2 === 0 ? 'var(--surface2)' : 'transparent' }}>
+            {topSites.map((site, i) => (
+              <tr key={site.domain + i} style={{ borderBottom: '1px solid var(--border)', background: i % 2 === 0 ? 'var(--surface2)' : 'transparent' }}>
                 <td style={{ padding: '12px', color: 'var(--muted2)', fontFamily: 'var(--mono)' }}>{i + 1}</td>
-                <td style={{ padding: '12px', color: 'var(--text)', fontFamily: 'var(--mono)' }}>{site.domain}</td>
+                <td style={{ padding: '12px', color: 'var(--text)', fontFamily: 'var(--mono)', maxWidth: 300, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={site.domain}>{site.domain.length > 45 ? site.domain.substring(0, 42) + '...' : site.domain}</td>
                 <td style={{ padding: '12px' }}><AppBadge app={site.app} /></td>
                 <td style={{ padding: '12px', fontFamily: 'var(--mono)' }}>{humanBytes(site.total_bytes)}</td>
-                <td style={{ padding: '12px', fontFamily: 'var(--mono)' }}>{site.total_packets.toLocaleString()}</td>
+                <td style={{ padding: '12px', fontFamily: 'var(--mono)' }}>{(site.total_packets||0).toLocaleString()}</td>
                 <td style={{ padding: '12px', fontFamily: 'var(--mono)' }}>{site.flow_count}</td>
               </tr>
             ))}
           </tbody>
         </table>
-        {(!sites || sites.length === 0) && <div style={{ padding: '40px 0', textAlign: 'center', color: 'var(--muted)' }}>No domain data yet</div>}
+        {topSites.length === 0 && <div style={{ padding: '40px 0', textAlign: 'center', color: 'var(--muted)' }}>No domain data yet</div>}
       </Panel>
     </div>
   )
@@ -231,12 +239,16 @@ function SitesView({ sites }) {
   const [sortBy, setSortBy] = useState('bytes');
   const [sortDesc, setSortDesc] = useState(true);
 
-  const filtered = (sites || []).filter(s => s.domain.toLowerCase().includes(search.toLowerCase()));
+  const safeSites = sites || [];
+  const filtered = safeSites.filter(s => (s?.domain || '').toLowerCase().includes(search.toLowerCase()));
+  
   const sorted = [...filtered].sort((a, b) => {
     let cmp = 0;
-    if (sortBy === 'domain') cmp = a.domain.localeCompare(b.domain);
-    else if (sortBy === 'bytes') cmp = a.total_bytes - b.total_bytes;
-    else if (sortBy === 'packets') cmp = a.total_packets - b.total_packets;
+    if (sortBy === 'domain') {
+       cmp = (a?.domain || '').localeCompare(b?.domain || '');
+    }
+    else if (sortBy === 'bytes') cmp = (a?.total_bytes || 0) - (b?.total_bytes || 0);
+    else if (sortBy === 'packets') cmp = (a?.total_packets || 0) - (b?.total_packets || 0);
     return sortDesc ? -cmp : cmp;
   });
 
@@ -254,13 +266,20 @@ function SitesView({ sites }) {
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20, height: '100%', paddingBottom: 40 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <h2 style={{ fontSize: 18, fontWeight: 500 }}>Sites Visited</h2>
-        <input type="text" placeholder="Search domains..." value={search} onChange={e => setSearch(e.target.value)} style={{ width: 250 }} />
+        <input 
+          type="text" 
+          placeholder="Search domains..." 
+          value={search} 
+          onChange={e => setSearch(e.target.value)}
+          style={{ width: 250 }}
+        />
       </div>
+      
       <div style={{ flex: 1, overflow: 'auto', background: 'var(--surface)', borderRadius: 10, border: '1px solid var(--border)' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: 12 }}>
           <thead style={{ position: 'sticky', top: 0, background: 'var(--surface)', zIndex: 10 }}>
             <tr style={{ color: 'var(--muted)', fontFamily: 'var(--sans)', borderBottom: '1px solid var(--border)' }}>
-              <th style={{ padding: '12px', cursor: 'pointer' }}>#</th>
+              <th style={{ padding: '12px' }}>#</th>
               <th style={{ padding: '12px', cursor: 'pointer' }} onClick={() => handleSort('domain')}>Domain <SortIcon col="domain" /></th>
               <th style={{ padding: '12px' }}>App</th>
               <th style={{ padding: '12px', cursor: 'pointer' }} onClick={() => handleSort('bytes')}>Total Bytes <SortIcon col="bytes" /></th>
@@ -272,16 +291,16 @@ function SitesView({ sites }) {
           </thead>
           <tbody>
             {sorted.map((site, i) => (
-              <tr key={site.domain} style={{ borderBottom: '1px solid var(--border)' }}>
+              <tr key={(site?.domain||'')+i} style={{ borderBottom: '1px solid var(--border)' }}>
                 <td style={{ padding: '12px', color: 'var(--muted2)', fontFamily: 'var(--mono)' }}>{i + 1}</td>
-                <td style={{ padding: '12px', color: 'var(--text)', fontFamily: 'var(--mono)', maxWidth: 200, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={site.domain}>{site.domain}</td>
-                <td style={{ padding: '12px' }}><AppBadge app={site.app} /></td>
-                <td style={{ padding: '12px', fontFamily: 'var(--mono)' }}>{humanBytes(site.total_bytes)}</td>
-                <td style={{ padding: '12px', fontFamily: 'var(--mono)' }}>{site.total_packets.toLocaleString()}</td>
-                <td style={{ padding: '12px', fontFamily: 'var(--mono)' }}>{site.flow_count}</td>
-                <td style={{ padding: '12px', color: 'var(--muted)' }}>{timeAgo(site.last_seen_ms)}</td>
+                <td style={{ padding: '12px', color: 'var(--text)', fontFamily: 'var(--mono)', maxWidth: 200, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={site?.domain}>{site?.domain}</td>
+                <td style={{ padding: '12px' }}><AppBadge app={site?.app} /></td>
+                <td style={{ padding: '12px', fontFamily: 'var(--mono)' }}>{humanBytes(site?.total_bytes || 0)}</td>
+                <td style={{ padding: '12px', fontFamily: 'var(--mono)' }}>{(site?.total_packets||0).toLocaleString()}</td>
+                <td style={{ padding: '12px', fontFamily: 'var(--mono)' }}>{site?.flow_count||0}</td>
+                <td style={{ padding: '12px', color: 'var(--muted)' }}>{timeAgo(site?.last_seen_ms || Date.now())}</td>
                 <td style={{ padding: '12px' }}>
-                  {site.blocked ? 
+                  {site?.blocked ? 
                     <span style={{ color: 'var(--red)', background: 'var(--red)22', padding: '2px 8px', borderRadius: 4, fontSize: 10, fontWeight: 600 }}>BLOCKED</span> :
                     <span style={{ color: 'var(--emerald)', background: 'rgba(16, 185, 129, 0.15)', padding: '2px 8px', borderRadius: 4, fontSize: 10, fontWeight: 600 }}>OK</span>
                   }
@@ -302,15 +321,17 @@ function FlowsView({ flows }) {
   const [blockedOnly, setBlockedOnly] = useState(false);
   const [prevFlows, setPrevFlows] = useState(new Set());
   
+  const safeFlows = flows || [];
+
   useEffect(() => {
-    const keys = new Set((flows || []).map(f => `${f.src_ip}:${f.src_port}-${f.dst_ip}:${f.dst_port}`));
+    const keys = new Set(safeFlows.map(f => `${f.src_ip}:${f.src_port}-${f.dst_ip}:${f.dst_port}`));
     setPrevFlows(keys);
   }, [flows]);
 
-  const uniqueApps = Array.from(new Set((flows || []).map(f => f.app_name))).sort();
+  const uniqueApps = Array.from(new Set(safeFlows.map(f => f.app_name))).sort();
 
-  const filtered = (flows || []).filter(f => {
-    if (search && !((f.domain || '').toLowerCase().includes(search.toLowerCase()) || f.dst_ip.includes(search))) return false;
+  const filtered = safeFlows.filter(f => {
+    if (search && !((f.domain || '').toLowerCase().includes(search.toLowerCase()) || (f.dst_ip||'').includes(search))) return false;
     if (filterApp && f.app_name !== filterApp) return false;
     if (blockedOnly && !f.blocked) return false;
     return true;
@@ -325,13 +346,17 @@ function FlowsView({ flows }) {
             <option value="">All Applications</option>
             {uniqueApps.map(app => <option key={app} value={app}>{app}</option>)}
           </select>
-          <input type="text" placeholder="Filter domain/IP..." value={search} onChange={e => setSearch(e.target.value)} />
+          <input 
+            type="text" placeholder="Filter domain/IP..." 
+            value={search} onChange={e => setSearch(e.target.value)}
+          />
           <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontSize: 12 }}>
             <input type="checkbox" checked={blockedOnly} onChange={e => setBlockedOnly(e.target.checked)} />
             Blocked only
           </label>
         </div>
       </div>
+      
       <div style={{ flex: 1, overflow: 'auto', background: 'var(--surface)', borderRadius: 10, border: '1px solid var(--border)' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: 12 }}>
           <thead style={{ position: 'sticky', top: 0, background: 'var(--surface)', zIndex: 10 }}>
@@ -361,9 +386,9 @@ function FlowsView({ flows }) {
                       <span style={{ fontSize: 10, color: 'var(--muted2)', fontFamily: 'var(--mono)' }}>{f.protocol === 6 ? 'TCP' : 'UDP'}</span>
                     </div>
                   </td>
-                  <td style={{ padding: '12px', fontFamily: 'var(--mono)' }}>{humanBytes(f.bytes)}</td>
-                  <td style={{ padding: '12px', fontFamily: 'var(--mono)' }}>{f.packets}</td>
-                  <td style={{ padding: '12px', color: 'var(--emerald)' }}>{timeAgo(f.first_seen_ms)}</td>
+                  <td style={{ padding: '12px', fontFamily: 'var(--mono)' }}>{humanBytes(f.bytes || 0)}</td>
+                  <td style={{ padding: '12px', fontFamily: 'var(--mono)' }}>{f.packets || 0}</td>
+                  <td style={{ padding: '12px', color: 'var(--emerald)' }}>{timeAgo(f.first_seen_ms || Date.now())}</td>
                   <td style={{ padding: '12px' }}>
                     <div style={{ display: 'flex', gap: 4 }}>
                       {f.is_quic && <span style={{ padding: '2px 6px', background: 'var(--violet)33', color: 'var(--violet)', borderRadius: 3, fontSize: 10, fontWeight: 700, border: '1px solid var(--violet)' }}>QUIC</span>}
@@ -382,14 +407,16 @@ function FlowsView({ flows }) {
 }
 
 function BlockedView({ flows }) {
-  const blocked = (flows || []).filter(f => f.blocked);
+  const safeFlows = flows || [];
+  const blocked = safeFlows.filter(f => f.blocked);
+  
   if (blocked.length === 0) {
     return (
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', color: 'var(--muted)' }}>
         <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round" style={{ marginBottom: 16 }}>
           <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
         </svg>
-        <p style={{ fontSize: 14 }}>No blocked flows</p>
+        <p style={{ fontSize: 14 }}>No blocked flows active</p>
         <p style={{ fontSize: 12, marginTop: 8 }}>Start blocking with --block-app or --block-domain flags</p>
       </div>
     );
@@ -398,6 +425,7 @@ function BlockedView({ flows }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20, height: '100%', paddingBottom: 40 }}>
       <h2 style={{ fontSize: 18, fontWeight: 500, color: 'var(--red)' }}>Blocked Flows</h2>
+      
       <div style={{ flex: 1, overflow: 'auto', background: 'var(--surface)', borderRadius: 10, border: '1px solid var(--red)' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: 12 }}>
           <thead style={{ position: 'sticky', top: 0, background: 'var(--surface)', zIndex: 10 }}>
@@ -420,9 +448,9 @@ function BlockedView({ flows }) {
                   </td>
                   <td style={{ padding: '12px', color: 'var(--text)', fontFamily: 'var(--mono)' }}>{f.domain || '-'}</td>
                   <td style={{ padding: '12px' }}><AppBadge app={f.app_name} /></td>
-                  <td style={{ padding: '12px', fontFamily: 'var(--mono)' }}>{humanBytes(f.bytes)}</td>
-                  <td style={{ padding: '12px', fontFamily: 'var(--mono)' }}>{f.packets}</td>
-                  <td style={{ padding: '12px', color: 'var(--muted)' }}>{timeAgo(f.last_seen_ms)}</td>
+                  <td style={{ padding: '12px', fontFamily: 'var(--mono)' }}>{humanBytes(f.bytes || 0)}</td>
+                  <td style={{ padding: '12px', fontFamily: 'var(--mono)' }}>{f.packets || 0}</td>
+                  <td style={{ padding: '12px', color: 'var(--muted)' }}>{timeAgo(f.last_seen_ms || Date.now())}</td>
                 </tr>
               );
             })}
@@ -454,11 +482,11 @@ export default function App() {
     } finally { setLoading(false) }
   }, [])
 
-  useEffect(() => { refresh() }, [refresh])
+  useEffect(() => { refresh() }, [])
   useEffect(() => {
     const id = setInterval(refresh, 4000)
     return () => clearInterval(id)
-  }, [refresh])
+  }, [])
   
   return (
     <div style={{ display: 'flex', height: '100vh', overflow: 'hidden' }}>
