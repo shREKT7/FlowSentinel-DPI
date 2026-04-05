@@ -8,6 +8,9 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 # Include headers
 include_directories(${CMAKE_SOURCE_DIR}/include)
+if(WIN32)
+    include_directories(${CMAKE_SOURCE_DIR}/npcap-sdk/Include)
+endif()
 
 # Source files for FlowSentinel DPI Engine
 set(SOURCES
@@ -20,14 +23,19 @@ set(SOURCES
     src/connection_tracker.cpp
     src/load_balancer.cpp
     src/fast_path.cpp
+    src/live_capture.cpp
+    src/ip_intelligence.cpp
+    src/app_fingerprint.cpp
+    src/flow_logger.cpp
 )
 
 # Create executable
 add_executable(flowsentinel ${SOURCES})
 
-# Thread support (MinGW handles this automatically, but safe to keep)
+# Thread support (MinGW handles this automatically, but safe to# Link libraries
 if(WIN32)
-    target_link_libraries(flowsentinel)
+    target_link_directories(flowsentinel PRIVATE ${CMAKE_SOURCE_DIR}/npcap-sdk/Lib/x64)
+    target_link_libraries(flowsentinel wpcap Packet)
 else()
-    target_link_libraries(flowsentinel pthread)
+    target_link_libraries(flowsentinel pthread pcap)
 endif()

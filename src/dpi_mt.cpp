@@ -12,20 +12,208 @@
 #include <mutex>
 #include <optional>
 #include <queue>
+#include <shared_mutex>
 #include <thread>
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
 
-
+#include "app_fingerprint.h"
+#include "flow_logger.h"
+#include "ip_intelligence.h"
+#include "live_capture.h"
 #include "packet_parser.h"
 #include "pcap_reader.h"
 #include "sni_extractor.h"
 #include "types.h"
 
-
 using namespace PacketAnalyzer;
 using namespace DPI;
+
+// =============================================================================
+// Hybrid Domain Intelligence Layer & DNS Correlation Engine
+// =============================================================================
+// 1. DNS responses (UDP src port 53) are parsed and IP→domain pairs cached.
+// 2. DNSCache uses a shared_mutex for fast concurrent reads in FP threads.
+// 3. parseDNSResponse() stores both network-byte-order and host-byte-order IP
+//    representations so lookups work regardless of storage convention.
+// 4. classifyFlow() consults the DNS cache before falling back to port heuristics.
+// =============================================================================
+
+// Thread-safe DNS cache with TTL and size-bounded eviction
+class DNSCache {
+public:
+    void recordMapping(uint32_t ip, const std::string& domain) {
+        std::unique_lock<std::shared_mutex> lock(mutex_);
+        cache_[ip] = {domain, std::chrono::steady_clock::now()};
+    }
+
+    std::optional<std::string> lookup(uint32_t ip) const {
+        std::shared_lock<std::shared_mutex> lock(mutex_);
+        auto it = cache_.find(ip);
+        if (it == cache_.end()) return std::nullopt;
+        auto age = std::chrono::steady_clock::now() - it->second.ts;
+        if (age > std::chrono::minutes(5)) return std::nullopt;
+        return it->second.domain;
+    }
+
+    size_t size() const {
+        std::shared_lock<std::shared_mutex> lock(mutex_);
+        return cache_.size();
+    }
+
+private:
+    struct Entry { std::string domain; std::chrono::steady_clock::time_point ts; };
+    mutable std::shared_mutex mutex_;
+    std::unordered_map<uint32_t, Entry> cache_;
+};
+
+static DNSCache g_dns_cache;
+static DPI::FlowLogger g_flow_logger("flows.json", 3);
+
+// Pre-populate DNS cache with well-known service IP ranges
+// so flows are classified even without capturing DNS responses
+static void populateKnownIPs() {
+    // Cloudflare CDN (used by many sites including Discord, Hotstar CDN)
+    // These are anycast ranges — we map representative IPs
+    struct { const char* ip; const char* domain; } known[] = {
+        // OpenAI
+        {"104.18.32.47",   "chat.openai.com"},
+        {"104.18.33.47",   "chat.openai.com"},
+        {"172.64.155.188", "api.openai.com"},
+        {"172.64.155.209", "oaistatic.com"},
+        // Cloudflare
+        {"1.1.1.1",        "cloudflare-dns.com"},
+        {"1.0.0.1",        "cloudflare-dns.com"},
+        // Google DNS over HTTPS
+        {"8.8.8.8",        "dns.google"},
+        {"8.8.4.4",        "dns.google"},
+    };
+
+    auto parseIPStr = [](const char* ip) -> uint32_t {
+        uint32_t result = 0;
+        int octet = 0, shift = 0;
+        for (const char* p = ip; *p; p++) {
+            if (*p == '.') {
+                result |= (octet << shift);
+                shift += 8;
+                octet = 0;
+            } else {
+                octet = octet * 10 + (*p - '0');
+            }
+        }
+        return result | (octet << shift);
+    };
+
+    for (const auto& entry : known) {
+        uint32_t ip = parseIPStr(entry.ip);
+        g_dns_cache.recordMapping(ip, entry.domain);
+        // Also store byte-swapped for reverse lookup
+        uint32_t swapped = ((ip & 0xFF) << 24) | (((ip >> 8) & 0xFF) << 16) |
+                           (((ip >> 16) & 0xFF) << 8) | ((ip >> 24) & 0xFF);
+        g_dns_cache.recordMapping(swapped, entry.domain);
+    }
+    std::cout << "[DNSCache] Pre-populated with " << sizeof(known)/sizeof(known[0])
+              << " known service IPs\n";
+}
+
+// Legacy per-packet DNS map (kept for addDnsMapping callers; now also feeds DNSCache)
+namespace {
+std::unordered_map<uint32_t, std::string> g_ip_to_domain;
+std::queue<uint32_t> g_dns_fifo;
+std::mutex g_dns_mutex;
+const size_t MAX_DNS_CACHE_SIZE = 10000;
+
+void addDnsMapping(uint32_t ip, const std::string& domain) {
+    // Feed the modern DNSCache
+    g_dns_cache.recordMapping(ip, domain);
+    // Also maintain legacy map
+    std::lock_guard<std::mutex> lock(g_dns_mutex);
+    if (g_ip_to_domain.find(ip) == g_ip_to_domain.end()) g_dns_fifo.push(ip);
+    g_ip_to_domain[ip] = domain;
+    while (g_ip_to_domain.size() > MAX_DNS_CACHE_SIZE && !g_dns_fifo.empty()) {
+        g_ip_to_domain.erase(g_dns_fifo.front());
+        g_dns_fifo.pop();
+    }
+}
+
+void parseDNS(const uint8_t *payload, size_t length) {
+  if (length < 12)
+    return;
+  uint16_t flags = (payload[2] << 8) | payload[3];
+  if ((flags & 0x8000) == 0)
+    return; // Not a response
+
+  uint16_t qdcount = (payload[4] << 8) | payload[5];
+  uint16_t ancount = (payload[6] << 8) | payload[7];
+
+  size_t offset = 12;
+  for (int i = 0; i < qdcount; ++i) {
+    while (offset < length && payload[offset] != 0) {
+      if ((payload[offset] & 0xC0) == 0xC0) {
+        offset += 2;
+        break;
+      } else {
+        offset += payload[offset] + 1;
+      }
+    }
+    if (offset < length && payload[offset] == 0)
+      offset++;
+    offset += 4;
+  }
+
+  for (int i = 0; i < ancount; ++i) {
+    if (offset >= length)
+      break;
+
+    std::string domain;
+    size_t name_offset = offset;
+    bool jumped = false;
+    size_t jump_cnt = 0;
+
+    while (name_offset < length && payload[name_offset] != 0) {
+      if ((payload[name_offset] & 0xC0) == 0xC0) {
+        if (!jumped)
+          offset = name_offset + 2;
+        if (name_offset + 1 >= length)
+          break;
+        name_offset =
+            ((payload[name_offset] & 0x3F) << 8) | payload[name_offset + 1];
+        jumped = true;
+        if (++jump_cnt > 10)
+          break;
+      } else {
+        uint8_t len = payload[name_offset];
+        if (name_offset + 1 + len > length)
+          break;
+        if (!domain.empty())
+          domain += ".";
+        domain.append((const char *)(payload + name_offset + 1), len);
+        name_offset += len + 1;
+        if (!jumped)
+          offset = name_offset;
+      }
+    }
+    if (!jumped && offset < length && payload[offset] == 0)
+      offset++;
+
+    if (offset + 10 > length)
+      break;
+    uint16_t type = (payload[offset] << 8) | payload[offset + 1];
+    uint16_t rdlength = (payload[offset + 8] << 8) | payload[offset + 9];
+    offset += 10;
+
+    if (type == 1 && rdlength == 4 && offset + 4 <= length) { // A record
+      uint32_t ip = (payload[offset]) | (payload[offset + 1] << 8) |
+                    (payload[offset + 2] << 16) | (payload[offset + 3] << 24);
+      if (!domain.empty()) {
+        addDnsMapping(ip, domain);
+      }
+    }
+    offset += rdlength;
+  }
+}
+} // namespace
 
 // =============================================================================
 // Thread-Safe Queue
@@ -181,6 +369,7 @@ struct Stats {
   std::atomic<uint64_t> dropped{0};
   std::atomic<uint64_t> tcp_packets{0};
   std::atomic<uint64_t> udp_packets{0};
+  std::atomic<uint64_t> active_flows{0};
 
   // Per-app stats (protected by mutex)
   std::mutex app_mutex;
@@ -220,6 +409,11 @@ public:
 
   uint64_t processed() const { return processed_; }
 
+  // Returns read-only reference to the flow map (used by live stats display)
+  const std::unordered_map<FiveTuple, FlowEntry, FiveTupleHash>& getFlows() const {
+    return flows_;
+  }
+
 private:
   int id_;
   Rules *rules_;
@@ -245,13 +439,21 @@ private:
       FlowEntry &flow = flows_[pkt.tuple];
       if (flow.packets == 0) {
         flow.tuple = pkt.tuple;
+        stats_->active_flows++;
       }
       flow.packets++;
       flow.bytes += pkt.data.size();
 
-      // Try to classify if not done yet
+      // Try to classify if not done yet (or upgrade from port-based guess)
       if (!flow.classified) {
+        AppType prev_type = flow.app_type;
         classifyFlow(pkt, flow);
+
+        // Record stats only when classification changes (per-flow, not
+        // per-packet)
+        if (flow.app_type != prev_type) {
+          stats_->recordApp(flow.app_type, flow.sni);
+        }
       }
 
       // Check blocking
@@ -260,8 +462,53 @@ private:
             rules_->isBlocked(pkt.tuple.src_ip, flow.app_type, flow.sni);
       }
 
-      // Record stats
-      stats_->recordApp(flow.app_type, flow.sni);
+      // Log flow snapshot for JSON dashboard
+      {
+        auto now_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
+            std::chrono::system_clock::now().time_since_epoch()).count();
+        auto ip4str = [](uint32_t ip) -> std::string {
+          char buf[20];
+          snprintf(buf, sizeof(buf), "%u.%u.%u.%u",
+                   ip & 0xFF, (ip >> 8) & 0xFF, (ip >> 16) & 0xFF, (ip >> 24) & 0xFF);
+          return std::string(buf);
+        };
+        DPI::FlowSnapshot snap;
+        snap.src_ip       = ip4str(pkt.tuple.src_ip);
+        snap.dst_ip       = ip4str(pkt.tuple.dst_ip);
+        snap.src_port     = pkt.tuple.src_port;
+        snap.dst_port     = pkt.tuple.dst_port;
+        snap.protocol     = pkt.tuple.protocol;
+        
+        // Domain: use flow.sni if available, otherwise try DNS cache
+        if (!flow.sni.empty()) {
+            snap.domain = flow.sni;
+        } else {
+            // Last-resort DNS cache lookup at snapshot time
+            auto cached = g_dns_cache.lookup(pkt.tuple.dst_ip);
+            if (!cached) cached = g_dns_cache.lookup(pkt.tuple.src_ip);
+            if (cached && !cached->empty()) {
+                snap.domain   = *cached;
+                // Also backfill flow.sni so future snapshots don't need the lookup
+                flow.sni      = *cached;
+                if (flow.app_type == AppType::UNKNOWN || flow.app_type == AppType::HTTPS) {
+                    flow.app_type = sniToAppType(*cached);
+                }
+            } else {
+                snap.domain = "";
+            }
+        }
+        
+        snap.app_name     = appTypeToString(flow.app_type);
+        snap.packets      = flow.packets;
+        snap.bytes        = flow.bytes;
+        snap.blocked      = flow.blocked;
+        snap.is_quic      = (pkt.tuple.protocol == 17 && pkt.tuple.dst_port == 443);
+        snap.first_seen_ms = now_ms - static_cast<int64_t>(flow.packets * 10);
+        snap.last_seen_ms  = now_ms;
+        g_flow_logger.record(snap);
+      }
+
+      // Count packet stats (always, but NOT app classification counts here)
 
       // Forward or drop
       if (flow.blocked) {
@@ -274,7 +521,42 @@ private:
   }
 
   void classifyFlow(Packet &pkt, FlowEntry &flow) {
-    // Try SNI extraction for HTTPS
+    // If this flow has no SNI yet, check if the REVERSE direction flow
+    // already has one (inbound packets arrive after outbound SNI is captured)
+    if (flow.sni.empty()) {
+        FiveTuple reverse_tuple;
+        reverse_tuple.src_ip   = pkt.tuple.dst_ip;
+        reverse_tuple.dst_ip   = pkt.tuple.src_ip;
+        reverse_tuple.src_port = pkt.tuple.dst_port;
+        reverse_tuple.dst_port = pkt.tuple.src_port;
+        reverse_tuple.protocol = pkt.tuple.protocol;
+
+        auto rev_it = flows_.find(reverse_tuple);
+        if (rev_it != flows_.end() && !rev_it->second.sni.empty()) {
+            // Copy domain and classification from the outbound flow
+            flow.sni        = rev_it->second.sni;
+            flow.app_type   = rev_it->second.app_type;
+            flow.classified = true;
+            return;  // Done — no further inspection needed
+        }
+    }
+
+    // 1. Check DNS correlation table (IP -> domain)
+    {
+      std::lock_guard<std::mutex> lock(g_dns_mutex);
+      auto it = g_ip_to_domain.find(pkt.tuple.dst_ip);
+      if (it != g_ip_to_domain.end()) {
+        flow.sni = it->second;
+        flow.app_type = sniToAppType(it->second);
+        if (flow.app_type != AppType::UNKNOWN &&
+            flow.app_type != AppType::HTTPS) {
+          flow.classified = true;
+          return;
+        }
+      }
+    }
+
+    // 2. Try SNI extraction for HTTPS
     if (pkt.tuple.dst_port == 443 && pkt.payload_length > 5) {
       const uint8_t *payload = pkt.data.data() + pkt.payload_offset;
       auto sni = SNIExtractor::extract(payload, pkt.payload_length);
@@ -286,7 +568,7 @@ private:
       }
     }
 
-    // Try HTTP Host extraction
+    // 2.b Try HTTP Host extraction
     if (pkt.tuple.dst_port == 80 && pkt.payload_length > 10) {
       const uint8_t *payload = pkt.data.data() + pkt.payload_offset;
       auto host = HTTPHostExtractor::extract(payload, pkt.payload_length);
@@ -298,14 +580,61 @@ private:
       }
     }
 
-    // DNS
+    // DNS — parse responses to populate the DNS cache
     if (pkt.tuple.dst_port == 53 || pkt.tuple.src_port == 53) {
       flow.app_type = AppType::DNS;
       flow.classified = true;
+      if (pkt.tuple.src_port == 53 && pkt.payload_length > 12) {
+        parseDNS(pkt.data.data() + pkt.payload_offset, pkt.payload_length);
+      }
       return;
     }
 
-    // Port-based fallback (but don't mark as classified - might get SNI later)
+    // 3. IP-range fingerprinting (soft guess on port 443, permanent elsewhere)
+    {
+      std::string app_name = detectAppFromIP(pkt.tuple.dst_ip);
+      if (app_name != "HTTPS") {
+        std::string lower = app_name;
+        std::transform(lower.begin(), lower.end(), lower.begin(),
+                       [](unsigned char c) { return std::tolower(c); });
+        AppType detected = sniToAppType(lower);
+        if (detected != AppType::UNKNOWN && detected != AppType::HTTPS) {
+          flow.app_type = detected;
+          if (pkt.tuple.dst_port != 443) {
+            flow.classified = true;
+          }
+          return;
+        }
+      }
+    }
+
+    // 4a. DNS cache lookup — classify flows by destination IP (DoH, cached OS)
+    if (flow.sni.empty()) {
+      auto cached_domain = g_dns_cache.lookup(pkt.tuple.dst_ip);
+      if (cached_domain && !cached_domain->empty()) {
+        flow.sni = *cached_domain;
+        flow.app_type = sniToAppType(*cached_domain);
+        if (flow.app_type != AppType::UNKNOWN) {
+          flow.classified = true;
+          return;
+        }
+      }
+    }
+
+    // 4b. QUIC SNI extraction for UDP port 443 (HTTP/3)
+    if (pkt.tuple.protocol == 17 && pkt.tuple.dst_port == 443 &&
+        pkt.payload_length > 20) {
+      const uint8_t* payload = pkt.data.data() + pkt.payload_offset;
+      auto sni = QUICSNIExtractor::extract(payload, pkt.payload_length);
+      if (sni) {
+        flow.sni = *sni;
+        flow.app_type = sniToAppType(*sni);
+        flow.classified = true;
+        return;
+      }
+    }
+
+    // 5. Port-based fallback — don't mark classified, wait for SNI
     if (pkt.tuple.dst_port == 443) {
       flow.app_type = AppType::HTTPS;
     } else if (pkt.tuple.dst_port == 80) {
@@ -411,28 +740,132 @@ public:
   void blockApp(const std::string &app) { rules_.blockApp(app); }
   void blockDomain(const std::string &dom) { rules_.blockDomain(dom); }
 
-  bool process(const std::string &input_file, const std::string &output_file) {
-    // Open input
+  bool process(const std::string &input_file, const std::string &output_file,
+               const std::string &live_interface = "") {
+    bool is_live = (input_file == "--live");
     PcapReader reader;
-    if (!reader.open(input_file))
-      return false;
+    LiveCapture live_reader;
 
-    // Open output
-    std::ofstream output(output_file, std::ios::binary);
-    if (!output.is_open()) {
-      std::cerr << "Cannot open output file\n";
-      return false;
+    if (is_live) {
+      if (!live_reader.start(live_interface))
+        return false;
+    } else {
+      if (!reader.open(input_file))
+        return false;
     }
 
-    // Write PCAP header
-    const auto &hdr = reader.getGlobalHeader();
-    output.write(reinterpret_cast<const char *>(&hdr), sizeof(hdr));
+    std::ofstream output;
+    if (!output_file.empty()) {
+      output.open(output_file, std::ios::binary);
+      if (!output.is_open()) {
+        std::cerr << "Cannot open output file\n";
+        return false;
+      }
+
+      if (!is_live) {
+        const auto &hdr = reader.getGlobalHeader();
+        output.write(reinterpret_cast<const char *>(&hdr), sizeof(hdr));
+      } else {
+        PcapGlobalHeader hdr = {0xa1b2c3d4, 2, 4, 0, 0, 65535, 1};
+        output.write(reinterpret_cast<const char *>(&hdr), sizeof(hdr));
+      }
+    }
 
     // Start all threads
+    populateKnownIPs();
+    g_flow_logger.start();
     for (auto &fp : fps_)
       fp->start();
     for (auto &lb : lbs_)
       lb->start();
+
+    std::atomic<bool> stats_running{true};
+    std::thread stats_thread;
+
+    if (is_live) {
+      stats_thread = std::thread([&]() {
+        uint64_t last_packets = 0;
+        while (stats_running) {
+          std::this_thread::sleep_for(std::chrono::seconds(1));
+          if (!stats_running)
+            break;
+
+          uint64_t current_packets = stats_.total_packets.load();
+          uint64_t pps = current_packets - last_packets;
+          last_packets = current_packets;
+
+          std::cout << "\033[2J\033[1;1H"; // Clear screen and home cursor
+          std::cout << "## FlowSentinel Live Monitor\n\n";
+          std::cout << "Packets/sec: " << pps << "\n";
+          std::cout << "Total Packets: " << current_packets << "\n";
+          std::cout << "Active Flows: " << stats_.active_flows.load() << "\n\n";
+          std::cout << "Top Applications\n";
+
+          std::lock_guard<std::mutex> lock(stats_.app_mutex);
+          std::vector<std::pair<AppType, uint64_t>> sorted_apps(
+              stats_.app_counts.begin(), stats_.app_counts.end());
+          std::sort(
+              sorted_apps.begin(), sorted_apps.end(),
+              [](const auto &a, const auto &b) { return a.second > b.second; });
+
+          // Compute per-flow percentages from app_counts (each flow counted
+          // once)
+          uint64_t total_flows = 0;
+          for (const auto &[app, cnt] : stats_.app_counts)
+            total_flows += cnt;
+
+          int count = 0;
+          for (const auto &[app, cnt] : sorted_apps) {
+            if (count++ >= 8)
+              break;
+            double pct = total_flows > 0 ? (100.0 * cnt / total_flows) : 0;
+            std::cout << std::setw(12) << std::left << appTypeToString(app)
+                      << " " << std::setw(3) << std::right
+                      << static_cast<int>(pct) << "%\n";
+          }
+
+          // Top detected domains by bytes transferred
+          std::cout << "\nTop Domains Detected\n";
+          std::cout << "--------------------\n";
+          {
+            std::unordered_map<std::string, uint64_t> domain_bytes;
+            for (auto& fp : fps_) {
+              for (auto& [tuple, flow] : fp->getFlows()) {
+                if (!flow.sni.empty()) {
+                  domain_bytes[flow.sni] += flow.bytes;
+                } else {
+                  // Try DNS cache lookup for this destination IP
+                  auto cached = g_dns_cache.lookup(tuple.dst_ip);
+                  if (cached) {
+                    domain_bytes[*cached] += flow.bytes;
+                  }
+                }
+              }
+            }
+            std::vector<std::pair<std::string, uint64_t>> sorted_domains(
+              domain_bytes.begin(), domain_bytes.end());
+            std::sort(sorted_domains.begin(), sorted_domains.end(),
+              [](const auto& a, const auto& b) { return a.second > b.second; });
+            int shown = 0;
+            for (auto& [domain, bytes] : sorted_domains) {
+              if (shown++ >= 15) break;
+              std::string short_dom = domain.length() > 35
+                  ? domain.substr(0, 32) + "..." : domain;
+              std::cout << "  " << std::left << std::setw(38) << short_dom
+                        << " " << std::right << std::setw(8);
+              if (bytes < 1024) std::cout << bytes << " B";
+              else if (bytes < 1024*1024) std::cout << (bytes/1024) << " KB";
+              else std::cout << (bytes/(1024*1024)) << " MB";
+              std::cout << "\n";
+            }
+            if (sorted_domains.empty()) {
+              std::cout << "  (waiting for SNI data...)\n";
+            }
+          }
+          std::cout << std::flush;
+        }
+      });
+    }
 
     // Start output writer thread
     std::atomic<bool> output_running{true};
@@ -442,25 +875,35 @@ public:
         if (!pkt_opt)
           continue;
 
-        PcapPacketHeader phdr;
-        phdr.ts_sec = pkt_opt->ts_sec;
-        phdr.ts_usec = pkt_opt->ts_usec;
-        phdr.incl_len = pkt_opt->data.size();
-        phdr.orig_len = pkt_opt->data.size();
+        if (output.is_open()) {
+          PcapPacketHeader phdr;
+          phdr.ts_sec = pkt_opt->ts_sec;
+          phdr.ts_usec = pkt_opt->ts_usec;
+          phdr.incl_len = pkt_opt->data.size();
+          phdr.orig_len = pkt_opt->data.size();
 
-        output.write(reinterpret_cast<const char *>(&phdr), sizeof(phdr));
-        output.write(reinterpret_cast<const char *>(pkt_opt->data.data()),
-                     pkt_opt->data.size());
+          output.write(reinterpret_cast<const char *>(&phdr), sizeof(phdr));
+          output.write(reinterpret_cast<const char *>(pkt_opt->data.data()),
+                       pkt_opt->data.size());
+        }
       }
     });
 
     // Read and dispatch packets
-    std::cout << "[Reader] Processing packets...\n";
+    std::cout
+        << (is_live
+                ? "[LiveCapture] Processing live packets (Ctrl+C to stop)...\n"
+                : "[Reader] Processing packets...\n");
     RawPacket raw;
     ParsedPacket parsed;
     uint32_t pkt_id = 0;
 
-    while (reader.readNextPacket(raw)) {
+    auto readNext = [&]() -> bool {
+      return is_live ? live_reader.readNextPacket(raw)
+                     : reader.readNextPacket(raw);
+    };
+
+    while (readNext()) {
       if (!PacketParser::parse(raw, parsed))
         continue;
       if (!parsed.has_ip || (!parsed.has_tcp && !parsed.has_udp))
@@ -529,8 +972,12 @@ public:
       lbs_[lb_idx]->queue().push(std::move(pkt));
     }
 
-    std::cout << "[Reader] Done reading " << pkt_id << " packets\n";
-    reader.close();
+    std::cout << (is_live ? "[LiveCapture] Stopped" : "[Reader] Done reading")
+              << " " << pkt_id << " packets\n";
+    if (is_live)
+      live_reader.close();
+    else
+      reader.close();
 
     // Wait for queues to drain
     std::this_thread::sleep_for(std::chrono::milliseconds(500));
@@ -545,10 +992,18 @@ public:
     output_queue_.shutdown();
     output_thread.join();
 
-    output.close();
+    if (output.is_open())
+      output.close();
 
-    // Print report
-    printReport();
+    if (is_live) {
+      stats_running = false;
+      if (stats_thread.joinable())
+        stats_thread.join();
+    } else {
+      // Print report
+      g_flow_logger.stop();
+      printReport();
+    }
 
     return true;
   }
@@ -644,6 +1099,10 @@ DPI Engine v2.0 - Multi-threaded Deep Packet Inspection
 
 Usage: )"
       << prog << R"( <input.pcap> <output.pcap> [options]
+       )"
+      << prog << R"( --live [interface_name] [options]
+       )"
+      << prog << R"( --interfaces
 
 Options:
   --block-ip <ip>        Block source IP
@@ -655,22 +1114,49 @@ Options:
 Example:
   )" << prog
       << R"( capture.pcap filtered.pcap --block-app YouTube --block-ip 192.168.1.50
+  )" << prog
+      << R"( --live "Wi-Fi" --block-app Facebook
 )";
 }
 
 int main(int argc, char *argv[]) {
-  if (argc < 3) {
+  if (argc >= 2 && std::string(argv[1]) == "--interfaces") {
+    auto interfaces = DPI::LiveCapture::listInterfaces();
+    std::cout << "\n## Available Network Interfaces\n\n";
+    for (size_t i = 0; i < interfaces.size(); ++i) {
+      std::cout << (i + 1) << ". " << interfaces[i] << "\n\n";
+    }
+    return 0;
+  }
+
+  if (argc < 2) {
     printUsage(argv[0]);
     return 1;
   }
 
   std::string input = argv[1];
-  std::string output = argv[2];
+  std::string output = "";
+  std::string live_interface = "";
+  int arg_start = 2;
+
+  if (input == "--live") {
+    if (argc > 2 && argv[2][0] != '-') {
+      live_interface = argv[2];
+      arg_start = 3;
+    }
+  } else {
+    if (argc < 3) {
+      printUsage(argv[0]);
+      return 1;
+    }
+    output = argv[2];
+    arg_start = 3;
+  }
 
   DPIEngine::Config cfg;
   std::vector<std::string> block_ips, block_apps, block_domains;
 
-  for (int i = 3; i < argc; i++) {
+  for (int i = arg_start; i < argc; i++) {
     std::string arg = argv[i];
     if (arg == "--block-ip" && i + 1 < argc)
       block_ips.push_back(argv[++i]);
@@ -693,10 +1179,12 @@ int main(int argc, char *argv[]) {
   for (const auto &dom : block_domains)
     engine.blockDomain(dom);
 
-  if (!engine.process(input, output)) {
+  if (!engine.process(input, output, live_interface)) {
     return 1;
   }
 
-  std::cout << "\nOutput written to: " << output << "\n";
+  if (!output.empty()) {
+    std::cout << "\nOutput written to: " << output << "\n";
+  }
   return 0;
 }

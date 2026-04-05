@@ -262,41 +262,49 @@ std::optional<std::string> DNSExtractor::extractQuery(const uint8_t* payload, si
 
 bool QUICSNIExtractor::isQUICInitial(const uint8_t* payload, size_t length) {
     if (length < 5) return false;
-    
-    // QUIC long header starts with 1 bit set (form bit)
-    // and the type should be Initial (0x00)
     uint8_t first_byte = payload[0];
-    
-    // Long header form
-    if ((first_byte & 0x80) == 0) return false;
-    
-    // Check for QUIC version (bytes 1-4)
-    // Common versions: 0x00000001 (v1), 0xff000000+ (drafts)
-    // We'll be lenient here
-    
-    return true;
+    if ((first_byte & 0x80) == 0) return false; // Must be long header
+    if ((first_byte & 0x40) == 0) return false; // Must have fixed bit
+    uint8_t packet_type = (first_byte & 0x30) >> 4;
+    if (packet_type != 0x00) return false; // Must be Initial (type 0)
+    uint32_t version = ((uint32_t)payload[1] << 24) | ((uint32_t)payload[2] << 16) |
+                       ((uint32_t)payload[3] << 8)  |  (uint32_t)payload[4];
+    // Accept QUIC v1 and draft versions (0xFF0000xx)
+    return (version == 0x00000001 || (version & 0xFF000000) == 0xFF000000);
 }
 
 std::optional<std::string> QUICSNIExtractor::extract(const uint8_t* payload, size_t length) {
-    // QUIC Initial packets contain the TLS Client Hello inside CRYPTO frames
-    // This is complex to parse properly due to QUIC framing
-    // For now, we'll do a simplified search for the SNI extension pattern
-    
-    if (!isQUICInitial(payload, length)) {
-        return std::nullopt;
-    }
-    
-    // Search for TLS Client Hello pattern within the QUIC packet
-    // Look for the handshake type byte followed by SNI extension
-    for (size_t i = 0; i + 50 < length; i++) {
-        if (payload[i] == 0x01) {  // Client Hello handshake type
-            // Try to extract SNI starting from here
-            auto result = SNIExtractor::extract(payload + i - 5, length - i + 5);
-            if (result) return result;
+    if (!isQUICInitial(payload, length)) return std::nullopt;
+
+    for (size_t i = 0; i + 9 < length; i++) {
+        // Pattern 1: TLS record header embedded in CRYPTO frame
+        if (payload[i] == 0x16 && payload[i+1] == 0x03) {
+            auto sni = SNIExtractor::extract(payload + i, length - i);
+            if (sni) return sni;
+        }
+        // Pattern 2: Raw ClientHello handshake type without TLS record wrapper
+        if (payload[i] == 0x01 && i + 4 < length) {
+            uint32_t hello_len = ((uint32_t)payload[i+1] << 16) |
+                                 ((uint32_t)payload[i+2] << 8)  |
+                                  (uint32_t)payload[i+3];
+            if (hello_len > 0 && hello_len < 16384 && i + 4 + hello_len <= length) {
+                // Wrap in a minimal TLS record so SNIExtractor can parse it
+                std::vector<uint8_t> wrapped;
+                wrapped.reserve(5 + 4 + hello_len);
+                wrapped.push_back(0x16); // Content-Type: Handshake
+                wrapped.push_back(0x03); // TLS major version
+                wrapped.push_back(0x01); // TLS minor version
+                uint16_t rec_len = static_cast<uint16_t>(4 + hello_len);
+                wrapped.push_back((rec_len >> 8) & 0xFF);
+                wrapped.push_back(rec_len & 0xFF);
+                wrapped.insert(wrapped.end(), payload + i, payload + i + 4 + hello_len);
+                auto sni = SNIExtractor::extract(wrapped.data(), wrapped.size());
+                if (sni) return sni;
+            }
         }
     }
-    
     return std::nullopt;
 }
+
 
 } // namespace DPI

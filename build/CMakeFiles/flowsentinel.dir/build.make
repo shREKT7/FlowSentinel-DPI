@@ -203,6 +203,66 @@ CMakeFiles/flowsentinel.dir/src/fast_path.cpp.s: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Compiling CXX source to assembly CMakeFiles/flowsentinel.dir/src/fast_path.cpp.s"
 	C:\mingw64\bin\c++.exe $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S D:\Projects\FlowSentinel-DPI\src\fast_path.cpp -o CMakeFiles\flowsentinel.dir\src\fast_path.cpp.s
 
+CMakeFiles/flowsentinel.dir/src/live_capture.cpp.obj: CMakeFiles/flowsentinel.dir/flags.make
+CMakeFiles/flowsentinel.dir/src/live_capture.cpp.obj: CMakeFiles/flowsentinel.dir/includes_CXX.rsp
+CMakeFiles/flowsentinel.dir/src/live_capture.cpp.obj: D:/Projects/FlowSentinel-DPI/src/live_capture.cpp
+CMakeFiles/flowsentinel.dir/src/live_capture.cpp.obj: CMakeFiles/flowsentinel.dir/compiler_depend.ts
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=D:\Projects\FlowSentinel-DPI\build\CMakeFiles --progress-num=$(CMAKE_PROGRESS_10) "Building CXX object CMakeFiles/flowsentinel.dir/src/live_capture.cpp.obj"
+	C:\mingw64\bin\c++.exe $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/flowsentinel.dir/src/live_capture.cpp.obj -MF CMakeFiles\flowsentinel.dir\src\live_capture.cpp.obj.d -o CMakeFiles\flowsentinel.dir\src\live_capture.cpp.obj -c D:\Projects\FlowSentinel-DPI\src\live_capture.cpp
+
+CMakeFiles/flowsentinel.dir/src/live_capture.cpp.i: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Preprocessing CXX source to CMakeFiles/flowsentinel.dir/src/live_capture.cpp.i"
+	C:\mingw64\bin\c++.exe $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E D:\Projects\FlowSentinel-DPI\src\live_capture.cpp > CMakeFiles\flowsentinel.dir\src\live_capture.cpp.i
+
+CMakeFiles/flowsentinel.dir/src/live_capture.cpp.s: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Compiling CXX source to assembly CMakeFiles/flowsentinel.dir/src/live_capture.cpp.s"
+	C:\mingw64\bin\c++.exe $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S D:\Projects\FlowSentinel-DPI\src\live_capture.cpp -o CMakeFiles\flowsentinel.dir\src\live_capture.cpp.s
+
+CMakeFiles/flowsentinel.dir/src/ip_intelligence.cpp.obj: CMakeFiles/flowsentinel.dir/flags.make
+CMakeFiles/flowsentinel.dir/src/ip_intelligence.cpp.obj: CMakeFiles/flowsentinel.dir/includes_CXX.rsp
+CMakeFiles/flowsentinel.dir/src/ip_intelligence.cpp.obj: D:/Projects/FlowSentinel-DPI/src/ip_intelligence.cpp
+CMakeFiles/flowsentinel.dir/src/ip_intelligence.cpp.obj: CMakeFiles/flowsentinel.dir/compiler_depend.ts
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=D:\Projects\FlowSentinel-DPI\build\CMakeFiles --progress-num=$(CMAKE_PROGRESS_11) "Building CXX object CMakeFiles/flowsentinel.dir/src/ip_intelligence.cpp.obj"
+	C:\mingw64\bin\c++.exe $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/flowsentinel.dir/src/ip_intelligence.cpp.obj -MF CMakeFiles\flowsentinel.dir\src\ip_intelligence.cpp.obj.d -o CMakeFiles\flowsentinel.dir\src\ip_intelligence.cpp.obj -c D:\Projects\FlowSentinel-DPI\src\ip_intelligence.cpp
+
+CMakeFiles/flowsentinel.dir/src/ip_intelligence.cpp.i: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Preprocessing CXX source to CMakeFiles/flowsentinel.dir/src/ip_intelligence.cpp.i"
+	C:\mingw64\bin\c++.exe $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E D:\Projects\FlowSentinel-DPI\src\ip_intelligence.cpp > CMakeFiles\flowsentinel.dir\src\ip_intelligence.cpp.i
+
+CMakeFiles/flowsentinel.dir/src/ip_intelligence.cpp.s: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Compiling CXX source to assembly CMakeFiles/flowsentinel.dir/src/ip_intelligence.cpp.s"
+	C:\mingw64\bin\c++.exe $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S D:\Projects\FlowSentinel-DPI\src\ip_intelligence.cpp -o CMakeFiles\flowsentinel.dir\src\ip_intelligence.cpp.s
+
+CMakeFiles/flowsentinel.dir/src/app_fingerprint.cpp.obj: CMakeFiles/flowsentinel.dir/flags.make
+CMakeFiles/flowsentinel.dir/src/app_fingerprint.cpp.obj: CMakeFiles/flowsentinel.dir/includes_CXX.rsp
+CMakeFiles/flowsentinel.dir/src/app_fingerprint.cpp.obj: D:/Projects/FlowSentinel-DPI/src/app_fingerprint.cpp
+CMakeFiles/flowsentinel.dir/src/app_fingerprint.cpp.obj: CMakeFiles/flowsentinel.dir/compiler_depend.ts
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=D:\Projects\FlowSentinel-DPI\build\CMakeFiles --progress-num=$(CMAKE_PROGRESS_12) "Building CXX object CMakeFiles/flowsentinel.dir/src/app_fingerprint.cpp.obj"
+	C:\mingw64\bin\c++.exe $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/flowsentinel.dir/src/app_fingerprint.cpp.obj -MF CMakeFiles\flowsentinel.dir\src\app_fingerprint.cpp.obj.d -o CMakeFiles\flowsentinel.dir\src\app_fingerprint.cpp.obj -c D:\Projects\FlowSentinel-DPI\src\app_fingerprint.cpp
+
+CMakeFiles/flowsentinel.dir/src/app_fingerprint.cpp.i: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Preprocessing CXX source to CMakeFiles/flowsentinel.dir/src/app_fingerprint.cpp.i"
+	C:\mingw64\bin\c++.exe $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E D:\Projects\FlowSentinel-DPI\src\app_fingerprint.cpp > CMakeFiles\flowsentinel.dir\src\app_fingerprint.cpp.i
+
+CMakeFiles/flowsentinel.dir/src/app_fingerprint.cpp.s: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Compiling CXX source to assembly CMakeFiles/flowsentinel.dir/src/app_fingerprint.cpp.s"
+	C:\mingw64\bin\c++.exe $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S D:\Projects\FlowSentinel-DPI\src\app_fingerprint.cpp -o CMakeFiles\flowsentinel.dir\src\app_fingerprint.cpp.s
+
+CMakeFiles/flowsentinel.dir/src/flow_logger.cpp.obj: CMakeFiles/flowsentinel.dir/flags.make
+CMakeFiles/flowsentinel.dir/src/flow_logger.cpp.obj: CMakeFiles/flowsentinel.dir/includes_CXX.rsp
+CMakeFiles/flowsentinel.dir/src/flow_logger.cpp.obj: D:/Projects/FlowSentinel-DPI/src/flow_logger.cpp
+CMakeFiles/flowsentinel.dir/src/flow_logger.cpp.obj: CMakeFiles/flowsentinel.dir/compiler_depend.ts
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=D:\Projects\FlowSentinel-DPI\build\CMakeFiles --progress-num=$(CMAKE_PROGRESS_13) "Building CXX object CMakeFiles/flowsentinel.dir/src/flow_logger.cpp.obj"
+	C:\mingw64\bin\c++.exe $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/flowsentinel.dir/src/flow_logger.cpp.obj -MF CMakeFiles\flowsentinel.dir\src\flow_logger.cpp.obj.d -o CMakeFiles\flowsentinel.dir\src\flow_logger.cpp.obj -c D:\Projects\FlowSentinel-DPI\src\flow_logger.cpp
+
+CMakeFiles/flowsentinel.dir/src/flow_logger.cpp.i: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Preprocessing CXX source to CMakeFiles/flowsentinel.dir/src/flow_logger.cpp.i"
+	C:\mingw64\bin\c++.exe $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E D:\Projects\FlowSentinel-DPI\src\flow_logger.cpp > CMakeFiles\flowsentinel.dir\src\flow_logger.cpp.i
+
+CMakeFiles/flowsentinel.dir/src/flow_logger.cpp.s: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Compiling CXX source to assembly CMakeFiles/flowsentinel.dir/src/flow_logger.cpp.s"
+	C:\mingw64\bin\c++.exe $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S D:\Projects\FlowSentinel-DPI\src\flow_logger.cpp -o CMakeFiles\flowsentinel.dir\src\flow_logger.cpp.s
+
 # Object files for target flowsentinel
 flowsentinel_OBJECTS = \
 "CMakeFiles/flowsentinel.dir/src/dpi_mt.cpp.obj" \
@@ -213,7 +273,11 @@ flowsentinel_OBJECTS = \
 "CMakeFiles/flowsentinel.dir/src/rule_manager.cpp.obj" \
 "CMakeFiles/flowsentinel.dir/src/connection_tracker.cpp.obj" \
 "CMakeFiles/flowsentinel.dir/src/load_balancer.cpp.obj" \
-"CMakeFiles/flowsentinel.dir/src/fast_path.cpp.obj"
+"CMakeFiles/flowsentinel.dir/src/fast_path.cpp.obj" \
+"CMakeFiles/flowsentinel.dir/src/live_capture.cpp.obj" \
+"CMakeFiles/flowsentinel.dir/src/ip_intelligence.cpp.obj" \
+"CMakeFiles/flowsentinel.dir/src/app_fingerprint.cpp.obj" \
+"CMakeFiles/flowsentinel.dir/src/flow_logger.cpp.obj"
 
 # External object files for target flowsentinel
 flowsentinel_EXTERNAL_OBJECTS =
@@ -227,11 +291,15 @@ flowsentinel.exe: CMakeFiles/flowsentinel.dir/src/rule_manager.cpp.obj
 flowsentinel.exe: CMakeFiles/flowsentinel.dir/src/connection_tracker.cpp.obj
 flowsentinel.exe: CMakeFiles/flowsentinel.dir/src/load_balancer.cpp.obj
 flowsentinel.exe: CMakeFiles/flowsentinel.dir/src/fast_path.cpp.obj
+flowsentinel.exe: CMakeFiles/flowsentinel.dir/src/live_capture.cpp.obj
+flowsentinel.exe: CMakeFiles/flowsentinel.dir/src/ip_intelligence.cpp.obj
+flowsentinel.exe: CMakeFiles/flowsentinel.dir/src/app_fingerprint.cpp.obj
+flowsentinel.exe: CMakeFiles/flowsentinel.dir/src/flow_logger.cpp.obj
 flowsentinel.exe: CMakeFiles/flowsentinel.dir/build.make
 flowsentinel.exe: CMakeFiles/flowsentinel.dir/linkLibs.rsp
 flowsentinel.exe: CMakeFiles/flowsentinel.dir/objects1.rsp
 flowsentinel.exe: CMakeFiles/flowsentinel.dir/link.txt
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --bold --progress-dir=D:\Projects\FlowSentinel-DPI\build\CMakeFiles --progress-num=$(CMAKE_PROGRESS_10) "Linking CXX executable flowsentinel.exe"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --bold --progress-dir=D:\Projects\FlowSentinel-DPI\build\CMakeFiles --progress-num=$(CMAKE_PROGRESS_14) "Linking CXX executable flowsentinel.exe"
 	$(CMAKE_COMMAND) -E cmake_link_script CMakeFiles\flowsentinel.dir\link.txt --verbose=$(VERBOSE)
 
 # Rule to build all files generated by this target.
