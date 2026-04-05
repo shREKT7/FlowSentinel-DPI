@@ -11,8 +11,8 @@
     "bytes": 247,
     "blocked": false,
     "is_quic": false,
-    "first_seen": 1775339236689,
-    "last_seen": 1775339236699
+    "first_seen": 1775405731761,
+    "last_seen": 1775405731771
   },
   {
     "src_ip": "192.168.1.100",
@@ -26,23 +26,8 @@
     "bytes": 248,
     "blocked": false,
     "is_quic": false,
-    "first_seen": 1775339236689,
-    "last_seen": 1775339236699
-  },
-  {
-    "src_ip": "192.168.1.100",
-    "dst_ip": "142.250.185.206",
-    "src_port": 54552,
-    "dst_port": 443,
-    "protocol": 6,
-    "domain": "www.google.com",
-    "app": "Google",
-    "packets": 3,
-    "bytes": 246,
-    "blocked": false,
-    "is_quic": false,
-    "first_seen": 1775339236689,
-    "last_seen": 1775339236699
+    "first_seen": 1775405731761,
+    "last_seen": 1775405731771
   },
   {
     "src_ip": "157.240.1.35",
@@ -56,38 +41,8 @@
     "bytes": 54,
     "blocked": false,
     "is_quic": false,
-    "first_seen": 1775339236689,
-    "last_seen": 1775339236699
-  },
-  {
-    "src_ip": "142.250.185.206",
-    "dst_ip": "192.168.1.100",
-    "src_port": 443,
-    "dst_port": 54552,
-    "protocol": 6,
-    "domain": "",
-    "app": "YouTube",
-    "packets": 1,
-    "bytes": 54,
-    "blocked": false,
-    "is_quic": false,
-    "first_seen": 1775339236689,
-    "last_seen": 1775339236699
-  },
-  {
-    "src_ip": "142.250.185.110",
-    "dst_ip": "192.168.1.100",
-    "src_port": 443,
-    "dst_port": 58867,
-    "protocol": 6,
-    "domain": "",
-    "app": "YouTube",
-    "packets": 1,
-    "bytes": 54,
-    "blocked": false,
-    "is_quic": false,
-    "first_seen": 1775339236689,
-    "last_seen": 1775339236699
+    "first_seen": 1775405731761,
+    "last_seen": 1775405731771
   },
   {
     "src_ip": "192.168.1.100",
@@ -101,53 +56,8 @@
     "bytes": 249,
     "blocked": false,
     "is_quic": false,
-    "first_seen": 1775339236689,
-    "last_seen": 1775339236699
-  },
-  {
-    "src_ip": "157.240.1.174",
-    "dst_ip": "192.168.1.100",
-    "src_port": 443,
-    "dst_port": 58747,
-    "protocol": 6,
-    "domain": "",
-    "app": "YouTube",
-    "packets": 1,
-    "bytes": 54,
-    "blocked": false,
-    "is_quic": false,
-    "first_seen": 1775339236689,
-    "last_seen": 1775339236699
-  },
-  {
-    "src_ip": "23.52.167.61",
-    "dst_ip": "192.168.1.100",
-    "src_port": 443,
-    "dst_port": 50684,
-    "protocol": 6,
-    "domain": "",
-    "app": "YouTube",
-    "packets": 1,
-    "bytes": 54,
-    "blocked": false,
-    "is_quic": false,
-    "first_seen": 1775339236689,
-    "last_seen": 1775339236699
-  },
-  {
-    "src_ip": "192.168.1.100",
-    "dst_ip": "140.82.114.4",
-    "src_port": 55490,
-    "dst_port": 443,
-    "protocol": 6,
-    "domain": "github.com",
-    "app": "GitHub",
-    "packets": 3,
-    "bytes": 242,
-    "blocked": false,
-    "is_quic": false,
-    "first_seen": 1775339236689,
-    "last_seen": 1775339236699
+    "first_seen": 1775405731761,
+    "last_seen": 1775405731771
   },
   {
     "src_ip": "192.168.1.100",
@@ -161,8 +71,8 @@
     "bytes": 243,
     "blocked": false,
     "is_quic": false,
-    "first_seen": 1775339236689,
-    "last_seen": 1775339236699
+    "first_seen": 1775405731761,
+    "last_seen": 1775405731771
   },
   {
     "src_ip": "104.244.42.65",
@@ -176,8 +86,8 @@
     "bytes": 54,
     "blocked": false,
     "is_quic": false,
-    "first_seen": 1775339236689,
-    "last_seen": 1775339236699
+    "first_seen": 1775405731761,
+    "last_seen": 1775405731771
   },
   {
     "src_ip": "192.168.1.100",
@@ -191,8 +101,8 @@
     "bytes": 246,
     "blocked": false,
     "is_quic": false,
-    "first_seen": 1775339236689,
-    "last_seen": 1775339236699
+    "first_seen": 1775405731761,
+    "last_seen": 1775405731771
   },
   {
     "src_ip": "52.94.236.248",
@@ -206,8 +116,8 @@
     "bytes": 54,
     "blocked": false,
     "is_quic": false,
-    "first_seen": 1775339236689,
-    "last_seen": 1775339236699
+    "first_seen": 1775405731761,
+    "last_seen": 1775405731771
   },
   {
     "src_ip": "192.168.1.100",
@@ -221,8 +131,53 @@
     "bytes": 247,
     "blocked": false,
     "is_quic": false,
-    "first_seen": 1775339236689,
-    "last_seen": 1775339236699
+    "first_seen": 1775405731761,
+    "last_seen": 1775405731771
+  },
+  {
+    "src_ip": "192.168.1.100",
+    "dst_ip": "142.250.185.206",
+    "src_port": 54552,
+    "dst_port": 443,
+    "protocol": 6,
+    "domain": "www.google.com",
+    "app": "Google",
+    "packets": 3,
+    "bytes": 246,
+    "blocked": false,
+    "is_quic": false,
+    "first_seen": 1775405731761,
+    "last_seen": 1775405731771
+  },
+  {
+    "src_ip": "142.250.185.206",
+    "dst_ip": "192.168.1.100",
+    "src_port": 443,
+    "dst_port": 54552,
+    "protocol": 6,
+    "domain": "",
+    "app": "YouTube",
+    "packets": 1,
+    "bytes": 54,
+    "blocked": false,
+    "is_quic": false,
+    "first_seen": 1775405731761,
+    "last_seen": 1775405731771
+  },
+  {
+    "src_ip": "142.250.185.110",
+    "dst_ip": "192.168.1.100",
+    "src_port": 443,
+    "dst_port": 58867,
+    "protocol": 6,
+    "domain": "",
+    "app": "YouTube",
+    "packets": 1,
+    "bytes": 54,
+    "blocked": false,
+    "is_quic": false,
+    "first_seen": 1775405731761,
+    "last_seen": 1775405731771
   },
   {
     "src_ip": "140.82.114.4",
@@ -236,8 +191,23 @@
     "bytes": 54,
     "blocked": false,
     "is_quic": false,
-    "first_seen": 1775339236689,
-    "last_seen": 1775339236699
+    "first_seen": 1775405731761,
+    "last_seen": 1775405731771
+  },
+  {
+    "src_ip": "157.240.1.174",
+    "dst_ip": "192.168.1.100",
+    "src_port": 443,
+    "dst_port": 58747,
+    "protocol": 6,
+    "domain": "",
+    "app": "YouTube",
+    "packets": 1,
+    "bytes": 54,
+    "blocked": false,
+    "is_quic": false,
+    "first_seen": 1775405731761,
+    "last_seen": 1775405731771
   },
   {
     "src_ip": "192.168.1.100",
@@ -251,23 +221,23 @@
     "bytes": 243,
     "blocked": false,
     "is_quic": false,
-    "first_seen": 1775339236689,
-    "last_seen": 1775339236699
+    "first_seen": 1775405731761,
+    "last_seen": 1775405731771
   },
   {
-    "src_ip": "192.168.1.100",
-    "dst_ip": "35.186.224.25",
-    "src_port": 49582,
-    "dst_port": 443,
+    "src_ip": "23.52.167.61",
+    "dst_ip": "192.168.1.100",
+    "src_port": 443,
+    "dst_port": 50684,
     "protocol": 6,
-    "domain": "zoom.us",
-    "app": "Zoom",
-    "packets": 3,
-    "bytes": 239,
+    "domain": "",
+    "app": "YouTube",
+    "packets": 1,
+    "bytes": 54,
     "blocked": false,
     "is_quic": false,
-    "first_seen": 1775339236689,
-    "last_seen": 1775339236699
+    "first_seen": 1775405731761,
+    "last_seen": 1775405731771
   },
   {
     "src_ip": "104.16.85.20",
@@ -281,23 +251,23 @@
     "bytes": 54,
     "blocked": false,
     "is_quic": false,
-    "first_seen": 1775339236689,
-    "last_seen": 1775339236699
+    "first_seen": 1775405731761,
+    "last_seen": 1775405731771
   },
   {
-    "src_ip": "35.186.224.25",
-    "dst_ip": "192.168.1.100",
-    "src_port": 443,
-    "dst_port": 49582,
+    "src_ip": "192.168.1.100",
+    "dst_ip": "140.82.114.4",
+    "src_port": 55490,
+    "dst_port": 443,
     "protocol": 6,
-    "domain": "",
-    "app": "YouTube",
-    "packets": 1,
-    "bytes": 54,
+    "domain": "github.com",
+    "app": "GitHub",
+    "packets": 3,
+    "bytes": 242,
     "blocked": false,
     "is_quic": false,
-    "first_seen": 1775339236689,
-    "last_seen": 1775339236699
+    "first_seen": 1775405731761,
+    "last_seen": 1775405731771
   },
   {
     "src_ip": "192.168.1.100",
@@ -311,23 +281,8 @@
     "bytes": 248,
     "blocked": false,
     "is_quic": false,
-    "first_seen": 1775339236689,
-    "last_seen": 1775339236699
-  },
-  {
-    "src_ip": "35.186.227.140",
-    "dst_ip": "192.168.1.100",
-    "src_port": 443,
-    "dst_port": 52879,
-    "protocol": 6,
-    "domain": "",
-    "app": "YouTube",
-    "packets": 1,
-    "bytes": 54,
-    "blocked": false,
-    "is_quic": false,
-    "first_seen": 1775339236689,
-    "last_seen": 1775339236699
+    "first_seen": 1775405731761,
+    "last_seen": 1775405731771
   },
   {
     "src_ip": "192.168.1.100",
@@ -341,23 +296,23 @@
     "bytes": 246,
     "blocked": false,
     "is_quic": false,
-    "first_seen": 1775339236689,
-    "last_seen": 1775339236699
+    "first_seen": 1775405731761,
+    "last_seen": 1775405731771
   },
   {
-    "src_ip": "99.86.0.100",
-    "dst_ip": "192.168.1.100",
-    "src_port": 443,
-    "dst_port": 63971,
+    "src_ip": "192.168.1.100",
+    "dst_ip": "35.186.224.25",
+    "src_port": 49582,
+    "dst_port": 443,
     "protocol": 6,
-    "domain": "",
-    "app": "YouTube",
-    "packets": 1,
-    "bytes": 54,
+    "domain": "zoom.us",
+    "app": "Zoom",
+    "packets": 3,
+    "bytes": 239,
     "blocked": false,
     "is_quic": false,
-    "first_seen": 1775339236689,
-    "last_seen": 1775339236699
+    "first_seen": 1775405731761,
+    "last_seen": 1775405731771
   },
   {
     "src_ip": "192.168.1.100",
@@ -371,8 +326,23 @@
     "bytes": 248,
     "blocked": false,
     "is_quic": false,
-    "first_seen": 1775339236689,
-    "last_seen": 1775339236699
+    "first_seen": 1775405731761,
+    "last_seen": 1775405731771
+  },
+  {
+    "src_ip": "35.186.224.25",
+    "dst_ip": "192.168.1.100",
+    "src_port": 443,
+    "dst_port": 49582,
+    "protocol": 6,
+    "domain": "",
+    "app": "YouTube",
+    "packets": 1,
+    "bytes": 54,
+    "blocked": false,
+    "is_quic": false,
+    "first_seen": 1775405731761,
+    "last_seen": 1775405731771
   },
   {
     "src_ip": "35.186.224.47",
@@ -386,8 +356,38 @@
     "bytes": 54,
     "blocked": false,
     "is_quic": false,
-    "first_seen": 1775339236689,
-    "last_seen": 1775339236699
+    "first_seen": 1775405731761,
+    "last_seen": 1775405731771
+  },
+  {
+    "src_ip": "35.186.227.140",
+    "dst_ip": "192.168.1.100",
+    "src_port": 443,
+    "dst_port": 52879,
+    "protocol": 6,
+    "domain": "",
+    "app": "YouTube",
+    "packets": 1,
+    "bytes": 54,
+    "blocked": false,
+    "is_quic": false,
+    "first_seen": 1775405731761,
+    "last_seen": 1775405731771
+  },
+  {
+    "src_ip": "99.86.0.100",
+    "dst_ip": "192.168.1.100",
+    "src_port": 443,
+    "dst_port": 63971,
+    "protocol": 6,
+    "domain": "",
+    "app": "YouTube",
+    "packets": 1,
+    "bytes": 54,
+    "blocked": false,
+    "is_quic": false,
+    "first_seen": 1775405731761,
+    "last_seen": 1775405731771
   },
   {
     "src_ip": "192.168.1.100",
@@ -401,8 +401,8 @@
     "bytes": 250,
     "blocked": false,
     "is_quic": false,
-    "first_seen": 1775339236689,
-    "last_seen": 1775339236699
+    "first_seen": 1775405731761,
+    "last_seen": 1775405731771
   },
   {
     "src_ip": "192.0.78.24",
@@ -416,113 +416,8 @@
     "bytes": 54,
     "blocked": false,
     "is_quic": false,
-    "first_seen": 1775339236689,
-    "last_seen": 1775339236699
-  },
-  {
-    "src_ip": "192.168.1.100",
-    "dst_ip": "13.107.42.14",
-    "src_port": 57103,
-    "dst_port": 443,
-    "protocol": 6,
-    "domain": "www.microsoft.com",
-    "app": "Microsoft",
-    "packets": 3,
-    "bytes": 249,
-    "blocked": false,
-    "is_quic": false,
-    "first_seen": 1775339236689,
-    "last_seen": 1775339236699
-  },
-  {
-    "src_ip": "13.107.42.14",
-    "dst_ip": "192.168.1.100",
-    "src_port": 443,
-    "dst_port": 57103,
-    "protocol": 6,
-    "domain": "",
-    "app": "YouTube",
-    "packets": 1,
-    "bytes": 54,
-    "blocked": false,
-    "is_quic": false,
-    "first_seen": 1775339236689,
-    "last_seen": 1775339236699
-  },
-  {
-    "src_ip": "192.168.1.100",
-    "dst_ip": "17.253.144.10",
-    "src_port": 56170,
-    "dst_port": 443,
-    "protocol": 6,
-    "domain": "www.apple.com",
-    "app": "Apple",
-    "packets": 3,
-    "bytes": 245,
-    "blocked": false,
-    "is_quic": false,
-    "first_seen": 1775339236689,
-    "last_seen": 1775339236699
-  },
-  {
-    "src_ip": "17.253.144.10",
-    "dst_ip": "192.168.1.100",
-    "src_port": 443,
-    "dst_port": 56170,
-    "protocol": 6,
-    "domain": "",
-    "app": "YouTube",
-    "packets": 1,
-    "bytes": 54,
-    "blocked": false,
-    "is_quic": false,
-    "first_seen": 1775339236689,
-    "last_seen": 1775339236699
-  },
-  {
-    "src_ip": "192.168.1.100",
-    "dst_ip": "93.184.216.34",
-    "src_port": 58936,
-    "dst_port": 80,
-    "protocol": 6,
-    "domain": "",
-    "app": "YouTube",
-    "packets": 2,
-    "bytes": 184,
-    "blocked": false,
-    "is_quic": false,
-    "first_seen": 1775339236689,
-    "last_seen": 1775339236699
-  },
-  {
-    "src_ip": "192.168.1.100",
-    "dst_ip": "8.8.8.8",
-    "src_port": 61888,
-    "dst_port": 53,
-    "protocol": 17,
-    "domain": "",
-    "app": "DNS",
-    "packets": 1,
-    "bytes": 76,
-    "blocked": false,
-    "is_quic": false,
-    "first_seen": 1775339236689,
-    "last_seen": 1775339236699
-  },
-  {
-    "src_ip": "192.168.1.100",
-    "dst_ip": "8.8.8.8",
-    "src_port": 51251,
-    "dst_port": 53,
-    "protocol": 17,
-    "domain": "",
-    "app": "DNS",
-    "packets": 1,
-    "bytes": 75,
-    "blocked": false,
-    "is_quic": false,
-    "first_seen": 1775339236689,
-    "last_seen": 1775339236699
+    "first_seen": 1775405731761,
+    "last_seen": 1775405731771
   },
   {
     "src_ip": "192.168.1.100",
@@ -536,38 +431,8 @@
     "bytes": 184,
     "blocked": false,
     "is_quic": false,
-    "first_seen": 1775339236689,
-    "last_seen": 1775339236699
-  },
-  {
-    "src_ip": "192.168.1.50",
-    "dst_ip": "172.217.0.100",
-    "src_port": 64009,
-    "dst_port": 443,
-    "protocol": 6,
-    "domain": "",
-    "app": "YouTube",
-    "packets": 1,
-    "bytes": 54,
-    "blocked": false,
-    "is_quic": false,
-    "first_seen": 1775339236689,
-    "last_seen": 1775339236699
-  },
-  {
-    "src_ip": "192.168.1.50",
-    "dst_ip": "172.217.0.100",
-    "src_port": 53728,
-    "dst_port": 443,
-    "protocol": 6,
-    "domain": "",
-    "app": "YouTube",
-    "packets": 1,
-    "bytes": 54,
-    "blocked": false,
-    "is_quic": false,
-    "first_seen": 1775339236689,
-    "last_seen": 1775339236699
+    "first_seen": 1775405731761,
+    "last_seen": 1775405731771
   },
   {
     "src_ip": "192.168.1.100",
@@ -575,14 +440,14 @@
     "src_port": 55178,
     "dst_port": 53,
     "protocol": 17,
-    "domain": "",
+    "domain": "dns.google",
     "app": "DNS",
     "packets": 1,
     "bytes": 74,
     "blocked": false,
     "is_quic": false,
-    "first_seen": 1775339236689,
-    "last_seen": 1775339236699
+    "first_seen": 1775405731761,
+    "last_seen": 1775405731771
   },
   {
     "src_ip": "192.168.1.100",
@@ -590,14 +455,14 @@
     "src_port": 63295,
     "dst_port": 53,
     "protocol": 17,
-    "domain": "",
+    "domain": "dns.google",
     "app": "DNS",
     "packets": 1,
     "bytes": 75,
     "blocked": false,
     "is_quic": false,
-    "first_seen": 1775339236689,
-    "last_seen": 1775339236699
+    "first_seen": 1775405731761,
+    "last_seen": 1775405731771
   },
   {
     "src_ip": "192.168.1.50",
@@ -611,8 +476,23 @@
     "bytes": 54,
     "blocked": false,
     "is_quic": false,
-    "first_seen": 1775339236689,
-    "last_seen": 1775339236699
+    "first_seen": 1775405731761,
+    "last_seen": 1775405731771
+  },
+  {
+    "src_ip": "192.168.1.100",
+    "dst_ip": "13.107.42.14",
+    "src_port": 57103,
+    "dst_port": 443,
+    "protocol": 6,
+    "domain": "www.microsoft.com",
+    "app": "Microsoft",
+    "packets": 3,
+    "bytes": 249,
+    "blocked": false,
+    "is_quic": false,
+    "first_seen": 1775405731761,
+    "last_seen": 1775405731771
   },
   {
     "src_ip": "192.168.1.50",
@@ -626,8 +506,8 @@
     "bytes": 54,
     "blocked": false,
     "is_quic": false,
-    "first_seen": 1775339236689,
-    "last_seen": 1775339236699
+    "first_seen": 1775405731761,
+    "last_seen": 1775405731771
   },
   {
     "src_ip": "192.168.1.50",
@@ -641,7 +521,127 @@
     "bytes": 54,
     "blocked": false,
     "is_quic": false,
-    "first_seen": 1775339236689,
-    "last_seen": 1775339236699
+    "first_seen": 1775405731761,
+    "last_seen": 1775405731771
+  },
+  {
+    "src_ip": "13.107.42.14",
+    "dst_ip": "192.168.1.100",
+    "src_port": 443,
+    "dst_port": 57103,
+    "protocol": 6,
+    "domain": "",
+    "app": "YouTube",
+    "packets": 1,
+    "bytes": 54,
+    "blocked": false,
+    "is_quic": false,
+    "first_seen": 1775405731761,
+    "last_seen": 1775405731771
+  },
+  {
+    "src_ip": "192.168.1.100",
+    "dst_ip": "17.253.144.10",
+    "src_port": 56170,
+    "dst_port": 443,
+    "protocol": 6,
+    "domain": "www.apple.com",
+    "app": "Apple",
+    "packets": 3,
+    "bytes": 245,
+    "blocked": false,
+    "is_quic": false,
+    "first_seen": 1775405731761,
+    "last_seen": 1775405731771
+  },
+  {
+    "src_ip": "17.253.144.10",
+    "dst_ip": "192.168.1.100",
+    "src_port": 443,
+    "dst_port": 56170,
+    "protocol": 6,
+    "domain": "",
+    "app": "YouTube",
+    "packets": 1,
+    "bytes": 54,
+    "blocked": false,
+    "is_quic": false,
+    "first_seen": 1775405731761,
+    "last_seen": 1775405731771
+  },
+  {
+    "src_ip": "192.168.1.100",
+    "dst_ip": "93.184.216.34",
+    "src_port": 58936,
+    "dst_port": 80,
+    "protocol": 6,
+    "domain": "",
+    "app": "YouTube",
+    "packets": 2,
+    "bytes": 184,
+    "blocked": false,
+    "is_quic": false,
+    "first_seen": 1775405731761,
+    "last_seen": 1775405731771
+  },
+  {
+    "src_ip": "192.168.1.100",
+    "dst_ip": "8.8.8.8",
+    "src_port": 61888,
+    "dst_port": 53,
+    "protocol": 17,
+    "domain": "dns.google",
+    "app": "DNS",
+    "packets": 1,
+    "bytes": 76,
+    "blocked": false,
+    "is_quic": false,
+    "first_seen": 1775405731761,
+    "last_seen": 1775405731771
+  },
+  {
+    "src_ip": "192.168.1.100",
+    "dst_ip": "8.8.8.8",
+    "src_port": 51251,
+    "dst_port": 53,
+    "protocol": 17,
+    "domain": "dns.google",
+    "app": "DNS",
+    "packets": 1,
+    "bytes": 75,
+    "blocked": false,
+    "is_quic": false,
+    "first_seen": 1775405731761,
+    "last_seen": 1775405731771
+  },
+  {
+    "src_ip": "192.168.1.50",
+    "dst_ip": "172.217.0.100",
+    "src_port": 64009,
+    "dst_port": 443,
+    "protocol": 6,
+    "domain": "",
+    "app": "YouTube",
+    "packets": 1,
+    "bytes": 54,
+    "blocked": false,
+    "is_quic": false,
+    "first_seen": 1775405731761,
+    "last_seen": 1775405731771
+  },
+  {
+    "src_ip": "192.168.1.50",
+    "dst_ip": "172.217.0.100",
+    "src_port": 53728,
+    "dst_port": 443,
+    "protocol": 6,
+    "domain": "",
+    "app": "YouTube",
+    "packets": 1,
+    "bytes": 54,
+    "blocked": false,
+    "is_quic": false,
+    "first_seen": 1775405731761,
+    "last_seen": 1775405731771
   }
 ]

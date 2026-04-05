@@ -82,24 +82,9 @@ static void populateKnownIPs() {
         {"104.18.33.47",   "chat.openai.com"},
         {"172.64.155.188", "api.openai.com"},
         {"172.64.155.209", "oaistatic.com"},
-        // Reddit
-        {"151.101.65.140",  "www.reddit.com"},
-        {"151.101.1.140",   "www.reddit.com"},
-        {"151.101.129.140", "www.reddit.com"},
-        {"151.101.193.140", "www.reddit.com"},
-        // Hotstar
-        {"34.226.14.100",  "hotstar.com"},
-        {"52.86.243.43",   "hotstar.com"},
-        // Spotify
-        {"35.186.224.53",  "scdn.co"},
-        {"35.186.224.47",  "open.spotify.com"},
-        {"35.186.227.52",  "open.spotify.com"},
-        // Discord
-        {"162.159.128.233","discord.com"},
-        {"162.159.129.233","discord.com"},
         // Cloudflare
-        {"1.1.1.1",        "cloudflare.com"},
-        {"1.0.0.1",        "cloudflare.com"},
+        {"1.1.1.1",        "cloudflare-dns.com"},
+        {"1.0.0.1",        "cloudflare-dns.com"},
         // Google DNS over HTTPS
         {"8.8.8.8",        "dns.google"},
         {"8.8.4.4",        "dns.google"},
